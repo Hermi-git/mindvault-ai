@@ -1,0 +1,51 @@
+services:
+  api:
+    env_file:
+      - .env
+    image: python:3.11-slim
+    container_name: mindvault-api
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      bash -lc "pip install --no-cache-dir -e . &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS}
+      REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS}
+      ENVIRONMENT: ${ENVIRONMENT}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16
+    container_name: mindvault-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    env_file:
+      - .env
+    image: redis:7
+    container_name: mindvault-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
