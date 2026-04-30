@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
 
 from app.application.dto.requests import (
     AcceptInvitationRequest,
@@ -24,16 +24,23 @@ from app.application.dto.responses import (
 )
 from app.domain.ports.inbound.auth.org_switch_inbound_contracts import SwitchOrganizationCommand
 from app.domain.ports.inbound.auth.registration_inbound_contracts import RegisterUserCommand
+from app.infrastructure.config import settings
 from app.infrastructure.di.container import Container
 from app.infrastructure.security.auth import get_current_claims
 from app.infrastructure.security.permissions import requires_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Determine if cookies should be secure (HTTPS only) based on environment
+IS_PRODUCTION = settings.environment.lower() in {"prod", "production"}
+COOKIE_SECURE = IS_PRODUCTION  # Only require HTTPS in production
+
 
 @router.post("/register", response_model=RegisterResponse)
 async def register(
     payload: RegisterRequest,
+    response: Response,
+    iam_service=Depends(Container.get_iam_service),
     service=Depends(Container.get_register_user_service),
 ) -> RegisterResponse:
     try:
@@ -47,13 +54,58 @@ async def register(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-    return RegisterResponse(user_id=str(result.user_id), default_org_id=str(result.default_org_id) if result.default_org_id else None)
+    
+    # Auto-login after successful registration
+    try:
+        login_result = await iam_service.login(
+            email=str(payload.email),
+            password=payload.password,
+            org_slug=None,
+            ip_address=None,
+            user_agent=None,
+        )
+    except ValueError as exc:
+        # Registration succeeded but auto-login failed - return user info without cookies
+        return RegisterResponse(
+            user_id=str(result.user_id),
+            default_org_id=str(result.default_org_id) if result.default_org_id else None
+        )
+    
+    # Set HttpOnly cookies for successful auto-login
+    if not login_result.get("mfa_required"):
+        access_token = login_result["access_token"]
+        refresh_token = login_result["refresh_token"]
+        access_ttl = 3600  # 1 hour
+        refresh_ttl = 604800  # 7 days
+        
+        response.set_cookie(
+            key="accessToken",
+            value=access_token,
+            max_age=access_ttl,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite="strict",
+        )
+        response.set_cookie(
+            key="refreshToken",
+            value=refresh_token,
+            max_age=refresh_ttl,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite="strict",
+        )
+    
+    return RegisterResponse(
+        user_id=str(result.user_id),
+        default_org_id=str(result.default_org_id) if result.default_org_id else None
+    )
 
 
 @router.post("/login", response_model=TokenPairResponse)
 async def login(
     payload: LoginRequest,
     request: Request,
+    response: Response,
     iam_service=Depends(Container.get_iam_service),
 ) -> TokenPairResponse | MFAPartialResponse:
     try:
@@ -66,14 +118,41 @@ async def login(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+    
+    # If MFA is required, return early (no cookies yet)
     if result.get("mfa_required"):
         return MFAPartialResponse(
             mfa_attempt_token=result["mfa_attempt_token"],
             expires_in_seconds=result["expires_in_seconds"],
         )
+    
+    # Set HttpOnly cookies for successful login
+    access_token = result["access_token"]
+    refresh_token = result["refresh_token"]
+    access_ttl = 3600  # 1 hour (from .env ACCESS_TOKEN_TTL_SECONDS)
+    refresh_ttl = 604800  # 7 days (from .env REFRESH_TOKEN_TTL_SECONDS)
+    
+    response.set_cookie(
+        key="accessToken",
+        value=access_token,
+        max_age=access_ttl,
+        httponly=True,      # JavaScript cannot access
+        secure=COOKIE_SECURE,        # HTTPS only in production
+        samesite="strict",  # CSRF protection
+    )
+    response.set_cookie(
+        key="refreshToken",
+        value=refresh_token,
+        max_age=refresh_ttl,
+        httponly=True,      # JavaScript cannot access
+        secure=COOKIE_SECURE,        # HTTPS only in production
+        samesite="strict",  # CSRF protection
+    )
+    
+    # Return response with cookies set
     return TokenPairResponse(
-        access_token=result["access_token"],
-        refresh_token=result["refresh_token"],
+        access_token="",  # Empty - token is in cookie
+        refresh_token="",  # Empty - token is in cookie
         token_type=result.get("token_type", "bearer"),
     )
 
@@ -81,6 +160,7 @@ async def login(
 @router.post("/switch-org", response_model=SwitchOrgResponse)
 async def switch_org(
     payload: SwitchOrgRequest,
+    response: Response,
     claims: dict = Depends(get_current_claims),
     service=Depends(Container.get_switch_org_service),
 ) -> SwitchOrgResponse:
@@ -98,9 +178,33 @@ async def switch_org(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    
+    # Set HttpOnly cookies with new org tokens
+    access_token = result.access_token
+    refresh_token = result.refresh_token
+    access_ttl = 3600  # 1 hour
+    refresh_ttl = 604800  # 7 days
+    
+    response.set_cookie(
+        key="accessToken",
+        value=access_token,
+        max_age=access_ttl,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+    response.set_cookie(
+        key="refreshToken",
+        value=refresh_token,
+        max_age=refresh_ttl,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+    
     return SwitchOrgResponse(
-        access_token=result.access_token,
-        refresh_token=result.refresh_token,
+        access_token="",  # Empty - token is in cookie
+        refresh_token="",  # Empty - token is in cookie
         active_org_id=str(result.active_org_id),
     )
 
@@ -116,16 +220,54 @@ async def me(claims: dict = Depends(get_current_claims)) -> MeResponse:
 
 @router.post("/refresh", response_model=TokenPairResponse)
 async def refresh_tokens(
-    payload: RefreshTokenRequest,
+    payload: RefreshTokenRequest | None = None,
+    response: Response = None,
+    request: Request = None,
     iam_service=Depends(Container.get_iam_service),
 ) -> TokenPairResponse:
+    # Support both body-based and cookie-based refresh tokens
+    refresh_token = None
+    
+    if payload and payload.refresh_token:
+        refresh_token = payload.refresh_token
+    else:
+        # Try to get from HttpOnly cookie
+        refresh_token = request.cookies.get("refreshToken")
+    
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token provided") from None
+    
     try:
-        result = await iam_service.refresh(refresh_token=payload.refresh_token)
+        result = await iam_service.refresh(refresh_token=refresh_token)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+    
+    # Set HttpOnly cookies with new tokens
+    access_token = result["access_token"]
+    new_refresh_token = result["refresh_token"]
+    access_ttl = 3600  # 1 hour
+    refresh_ttl = 604800  # 7 days
+    
+    response.set_cookie(
+        key="accessToken",
+        value=access_token,
+        max_age=access_ttl,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+    response.set_cookie(
+        key="refreshToken",
+        value=new_refresh_token,
+        max_age=refresh_ttl,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+    
     return TokenPairResponse(
-        access_token=result["access_token"],
-        refresh_token=result["refresh_token"],
+        access_token="",  # Empty - token is in cookie
+        refresh_token="",  # Empty - token is in cookie
         token_type=result["token_type"],
     )
 
