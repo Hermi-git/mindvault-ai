@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.infrastructure.di.providers import get_token_service
@@ -9,13 +9,24 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_claims(
+    request: Request = None,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ):
-    if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    token = None
+    
+    # Try to get token from Authorization header first (Bearer scheme)
+    if credentials:
+        token = credentials.credentials
+    # Fallback to reading from HttpOnly cookie
+    elif request:
+        token = request.cookies.get("accessToken")
+    
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token")
+    
     token_service = get_token_service()
     try:
-        claims = token_service.decode(credentials.credentials)
+        claims = token_service.decode(token)
         if claims.get("type") != "access":
             raise ValueError("Invalid token type")
         if not claims.get("sub") or not claims.get("org_id"):
