@@ -82,8 +82,9 @@ export function Pricing() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
-        ease: 'easeOut',
+        type: 'spring' as const,
+        stiffness: 100,
+        damping: 15,
       },
     },
   };
@@ -107,7 +108,7 @@ export function Pricing() {
           transition={{ duration: 10, repeat: Infinity }}
           className={cn(
             'absolute -top-40 right-0 w-96 h-96',
-            'bg-gradient-to-br from-indigo-600/30 to-cyan-400/10',
+            'bg-linear-to-br from-indigo-600/30 to-cyan-400/10',
             'rounded-full blur-3xl'
           )}
         />
@@ -125,7 +126,7 @@ export function Pricing() {
         >
           <h2 className={cn(
             'text-4xl md:text-5xl font-bold mb-6',
-            'bg-gradient-to-r from-slate-50 to-cyan-400',
+            'bg-linear-to-r from-slate-50 to-cyan-400',
             'bg-clip-text text-transparent'
           )}>
             Simple, Transparent Pricing
@@ -179,7 +180,7 @@ export function Pricing() {
                   className={cn(
                     'absolute -top-4 left-1/2 -translate-x-1/2',
                     'px-4 py-1 rounded-full',
-                    'bg-gradient-to-r from-indigo-600 to-cyan-400',
+                    'bg-linear-to-r from-indigo-600 to-cyan-400',
                     'text-white text-sm font-bold',
                     'shadow-lg shadow-cyan-500/50'
                   )}
@@ -232,7 +233,7 @@ export function Pricing() {
                     'flex items-center justify-center',
                     tier.featured
                       ? [
-                        'bg-gradient-to-r from-indigo-600 to-cyan-400',
+                        'bg-linear-to-r from-indigo-600 to-cyan-400',
                         'text-white shadow-lg shadow-indigo-500/50',
                         'hover:shadow-xl hover:shadow-indigo-500/75',
                       ]
@@ -248,7 +249,7 @@ export function Pricing() {
               </Link>
 
               {/* Divider */}
-              <div className="h-px bg-gradient-to-r from-slate-700/0 via-slate-700/50 to-slate-700/0 mb-8" />
+              <div className="h-px bg-linear-to-r from-slate-700/0 via-slate-700/50 to-slate-700/0 mb-8" />
 
               {/* Features List */}
               <ul className="space-y-4">
@@ -264,7 +265,7 @@ export function Pricing() {
                     <Check
                       size={20}
                       className={cn(
-                        'flex-shrink-0 mt-0.5',
+                        'shrink-0 mt-0.5',
                         tier.featured
                           ? 'text-cyan-400'
                           : 'text-indigo-500'

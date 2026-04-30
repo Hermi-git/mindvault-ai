@@ -24,9 +24,7 @@ export function Hero() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        type: 'spring',
+        type: 'spring' as const,
         stiffness: 100,
         damping: 15,
       },
@@ -49,7 +47,7 @@ export function Hero() {
           transition={{ duration: 8, repeat: Infinity }}
           className={cn(
             'absolute -top-40 -right-40 w-96 h-96',
-            'bg-gradient-to-br from-indigo-600/40 to-cyan-400/20',
+            'bg-linear-to-br from-indigo-600/40 to-cyan-400/20',
             'rounded-full blur-3xl'
           )}
         />
@@ -61,7 +59,7 @@ export function Hero() {
           transition={{ duration: 10, repeat: Infinity, delay: 1 }}
           className={cn(
             'absolute -bottom-40 -left-40 w-96 h-96',
-            'bg-gradient-to-tr from-cyan-400/20 to-indigo-600/30',
+            'bg-linear-to-tr from-cyan-400/20 to-indigo-600/30',
             'rounded-full blur-3xl'
           )}
         />
@@ -100,7 +98,7 @@ export function Hero() {
         <motion.div variants={itemVariants} className="space-y-4">
           <h1 className={cn(
             'text-5xl md:text-7xl font-bold leading-tight',
-            'bg-gradient-to-r from-slate-50 via-indigo-300 to-cyan-400',
+            'bg-linear-to-r from-slate-50 via-indigo-300 to-cyan-400',
             'bg-clip-text text-transparent',
             'tracking-tight'
           )}>
@@ -133,7 +131,7 @@ export function Hero() {
               whileTap={{ scale: 0.95 }}
               className={cn(
                 'px-8 py-4 rounded-lg font-semibold',
-                'bg-gradient-to-r from-indigo-600 to-cyan-400',
+                'bg-linear-to-r from-indigo-600 to-cyan-400',
                 'text-white shadow-lg shadow-indigo-500/50',
                 'hover:shadow-xl hover:shadow-indigo-500/75',
                 'transition-all duration-300',
@@ -193,7 +191,7 @@ export function Hero() {
       >
         <p>Scroll to explore</p>
         <div className="flex justify-center mt-2">
-          <motion.div className="w-1 h-6 rounded-full bg-gradient-to-b from-cyan-400 to-transparent" />
+          <motion.div className="w-1 h-6 rounded-full bg-linear-to-b from-cyan-400 to-transparent" />
         </div>
       </motion.div>
     </section>

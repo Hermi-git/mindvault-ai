@@ -62,9 +62,7 @@ export function Features() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        type: 'spring',
+        type: 'spring' as const,
         stiffness: 100,
         damping: 15,
       },
@@ -89,7 +87,7 @@ export function Features() {
           transition={{ duration: 10, repeat: Infinity }}
           className={cn(
             'absolute top-1/2 right-0 w-96 h-96',
-            'bg-gradient-to-l from-indigo-600/20 to-transparent',
+            'bg-linear-to-l from-indigo-600/20 to-transparent',
             'rounded-full blur-3xl'
           )}
         />
@@ -106,7 +104,7 @@ export function Features() {
         <motion.div variants={itemVariants} className="text-center mb-16">
           <h2 className={cn(
             'text-4xl md:text-5xl font-bold mb-4',
-            'bg-gradient-to-r from-slate-50 to-cyan-400',
+            'bg-linear-to-r from-slate-50 to-cyan-400',
             'bg-clip-text text-transparent'
           )}>
             Everything You Need
@@ -128,7 +126,7 @@ export function Features() {
               whileHover={{ y: -5 }}
               className={cn(
                 'p-6 rounded-xl',
-                'bg-gradient-to-br from-white/5 to-white/0',
+                'bg-linear-to-br from-white/5 to-white/0',
                 'border border-slate-700/30 hover:border-cyan-400/30',
                 'backdrop-blur-sm',
                 'transition-all duration-300 group'
@@ -138,7 +136,7 @@ export function Features() {
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 className={cn(
                   'w-12 h-12 rounded-lg mb-4',
-                  'bg-gradient-to-br from-indigo-600 to-cyan-400',
+                  'bg-linear-to-br from-indigo-600 to-cyan-400',
                   'flex items-center justify-center text-white',
                   'group-hover:shadow-lg group-hover:shadow-indigo-500/50',
                   'transition-shadow duration-300'
