@@ -76,9 +76,17 @@ class IAMService:
                     OrganizationORM, OrganizationORM.id == OrganizationMembershipORM.org_id
                 ).where(OrganizationORM.slug == org_slug)
             memberships = (await session.execute(membership_stmt)).scalars().all()
-            membership = memberships[0] if memberships else None
-            if not membership:
+            
+            # If org_slug specified, user must have that membership
+            # If no org_slug specified, use first active membership (defaults to first created)
+            if org_slug and not memberships:
                 raise ValueError("No active organization membership")
+            elif not memberships:
+                # No memberships at all - user has no orgs
+                raise ValueError("No active organization membership")
+            
+            # Use specified org or default to first membership
+            membership = memberships[0]
 
             await self._throttle_service.clear_login_failures(ip=ip, username=email)
             user.last_login_at = datetime.now(timezone.utc)
