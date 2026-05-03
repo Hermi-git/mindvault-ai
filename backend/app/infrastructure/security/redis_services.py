@@ -144,27 +144,41 @@ class TokenService:
 
 
 class InvitationService:
+    """Invite token binds to persisted row id: issuer|invite_id|org_id|email|role|exp|sig."""
+
     def __init__(self, *, secret: str, issuer: str) -> None:
         self._secret = secret.encode("utf-8")
         self._issuer = issuer
 
-    def issue(self, *, org_id: str, email: str, role: str, expires_in_seconds: int) -> str:
+    def issue(
+        self,
+        *,
+        invite_id: str,
+        org_id: str,
+        email: str,
+        role: str,
+        expires_in_seconds: int,
+    ) -> str:
         exp = int((datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)).timestamp())
-        payload = f"{self._issuer}|{org_id}|{email.lower()}|{role}|{exp}"
-        sig = hmac.new(self._secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        return f"{payload}|{sig}"
+        normalized_email = email.strip().lower()
+        normalized_role = role.strip().lower()
+        blob = f"{self._issuer}|{invite_id}|{org_id}|{normalized_email}|{normalized_role}|{exp}"
+        sig = hmac.new(self._secret, blob.encode("utf-8"), hashlib.sha256).hexdigest()
+        return f"{blob}|{sig}"
 
     def verify(self, token: str) -> dict[str, str]:
-        try:
-            issuer, org_id, email, role, exp_str, sig = token.split("|", 5)
-        except ValueError as exc:
-            raise ValueError("Malformed invitation token") from exc
-        payload = f"{issuer}|{org_id}|{email}|{role}|{exp_str}"
-        expected = hmac.new(self._secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, sig):
+        if "|" not in token:
+            raise ValueError("Malformed invitation token")
+        signed_blob, sig = token.rsplit("|", 1)
+        expected_sig = hmac.new(self._secret, signed_blob.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected_sig, sig):
             raise ValueError("Invalid invitation signature")
+        parts = signed_blob.split("|")
+        if len(parts) != 6:
+            raise ValueError("Malformed invitation token")
+        issuer, invite_id, org_id, email, role, exp_str = parts
         if issuer != self._issuer:
             raise ValueError("Invitation issuer mismatch")
         if int(exp_str) < int(datetime.now(timezone.utc).timestamp()):
             raise ValueError("Invitation expired")
-        return {"org_id": org_id, "email": email, "role": role}
+        return {"invite_id": invite_id, "org_id": org_id, "email": email, "role": role}

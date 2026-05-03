@@ -6,11 +6,13 @@ from app.adapters.outbound.db.repositories.password_hasher_impl import BcryptPas
 from app.adapters.outbound.db.repositories.token_provider_impl import JwtTokenProvider
 from app.adapters.outbound.db.repositories.uow_impl import SQLAlchemyUnitOfWork
 from app.adapters.outbound.db.session import SessionFactory
+from app.adapters.outbound.email.email_sender import NullEmailSender, SmtpEmailSender
 from app.application.services.iam_service import IAMService
 from app.application.use_cases.login_user_service import LoginUserService
 from app.application.use_cases.register_user_service import RegisterUserService
 from app.application.use_cases.switch_org_service import SwitchOrganizationService
 from app.infrastructure.config import settings
+from app.domain.ports.outbound.email_sender import EmailSender
 from app.infrastructure.security.redis_services import InvitationService, ThrottleService, TokenService
 
 
@@ -56,7 +58,22 @@ def get_throttle_service() -> ThrottleService:
 
 
 def get_invitation_service() -> InvitationService:
-    return InvitationService(secret=settings.jwt_secret, issuer=settings.jwt_issuer)
+    signing_secret = settings.invitation_signing_secret or settings.jwt_secret
+    return InvitationService(secret=signing_secret, issuer=settings.jwt_issuer)
+
+
+def get_email_sender() -> EmailSender:
+    if not settings.use_smtp_email_delivery:
+        return NullEmailSender()
+    return SmtpEmailSender(
+        host=settings.smtp_host,
+        port=settings.smtp_port,
+        username=(settings.smtp_username or "").strip() or None,
+        password=settings.smtp_password_for_auth,
+        use_tls=settings.smtp_use_tls,
+        from_email=settings.smtp_from_email,
+        from_name=settings.smtp_from_name or "MindVault AI",
+    )
 
 
 def get_iam_service() -> IAMService:
@@ -66,6 +83,7 @@ def get_iam_service() -> IAMService:
         throttle_service=get_throttle_service(),
         invitation_service=get_invitation_service(),
         password_hasher=get_password_hasher(),
+        frontend_base_url=settings.frontend_base_url,
         access_ttl_seconds=settings.access_token_ttl_seconds,
         refresh_ttl_seconds=settings.refresh_token_ttl_seconds,
         mfa_attempt_ttl_seconds=settings.mfa_attempt_ttl_seconds,
