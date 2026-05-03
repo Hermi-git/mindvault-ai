@@ -39,6 +39,13 @@ class AcceptInvitationRequest(BaseModel):
     invitation_token: StrictStr
 
 
+class RegisterViaInvitationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    invitation_token: StrictStr
+    password: StrictStr = Field(..., min_length=8, max_length=128)
+    full_name: StrictStr = Field(..., min_length=2, max_length=255)
+
+
 class MembersListQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     page: StrictInt = Field(default=1, ge=1)
