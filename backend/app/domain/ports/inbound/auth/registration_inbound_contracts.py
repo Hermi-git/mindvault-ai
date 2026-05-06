@@ -10,7 +10,7 @@ class RegisterUserCommand:
     email:str
     password:str
     full_name:str
-    organization_name:str | None = None
+    organization_name:str
 
 
 @dataclass(slots=True)

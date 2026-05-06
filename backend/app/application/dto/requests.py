@@ -8,7 +8,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: StrictStr = Field(..., min_length=8, max_length=128)
     full_name: StrictStr = Field(..., min_length=2, max_length=255)
-    organization_name: StrictStr | None = Field(default=None, min_length=2, max_length=255)
+    organization_name: StrictStr = Field(..., min_length=2, max_length=255)
 
 
 class LoginRequest(BaseModel):
@@ -37,6 +37,13 @@ class InviteMemberRequest(BaseModel):
 class AcceptInvitationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     invitation_token: StrictStr
+
+
+class RegisterViaInvitationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    invitation_token: StrictStr
+    password: StrictStr = Field(..., min_length=8, max_length=128)
+    full_name: StrictStr = Field(..., min_length=2, max_length=255)
 
 
 class MembersListQuery(BaseModel):
