@@ -5,6 +5,7 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.adapters.outbound.db.sqlalchemy_models import (
     AuditLogORM,
@@ -316,6 +317,8 @@ class IAMService:
                     metadata_json={},
                 )
             )
+            # Ensure the user row exists before membership insert to satisfy FK constraints.
+            await session.flush()
             session.add(
                 OrganizationMembershipORM(
                     id=uuid4(),
@@ -328,7 +331,11 @@ class IAMService:
                 )
             )
             inv.consumed_at = now
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError as exc:
+                await session.rollback()
+                raise ValueError("Failed to complete invitation registration due to data integrity constraints") from exc
             return {"user_id": str(new_user_id), "default_org_id": str(inv.org_id)}
 
     async def list_org_members(self, *, actor_claims: dict, org_id: UUID, page: int, page_size: int) -> dict:
