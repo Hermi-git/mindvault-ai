@@ -4,6 +4,7 @@ import html as html_module
 import logging
 import smtplib
 import subprocess
+import tempfile
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -81,6 +82,7 @@ class SmtpEmailSender(EmailSender):
         )
         try:
             html_body = self._compile_mjml(mjml_source)
+            logger.info("Compiled MJML invitation template successfully")
         except (RuntimeError, OSError, FileNotFoundError) as exc:
             logger.warning(
                 "MJML CLI unavailable or failed (%s); sending invitation with simple HTML instead.",
@@ -110,14 +112,16 @@ class SmtpEmailSender(EmailSender):
             smtp.send_message(msg)
 
     def _compile_mjml(self, mjml_source: str) -> str:
-        process = subprocess.run(
-            [self._mjml_binary_path, "-s"],
-            input=mjml_source,
-            text=True,
-            capture_output=True,
-            timeout=120,
-            check=False,
-        )
+        with tempfile.NamedTemporaryFile("w", suffix=".mjml", encoding="utf-8", delete=True) as tmp:
+            tmp.write(mjml_source)
+            tmp.flush()
+            process = subprocess.run(
+                [self._mjml_binary_path, tmp.name, "-s"],
+                text=True,
+                capture_output=True,
+                timeout=120,
+                check=False,
+            )
         if process.returncode != 0:
             stderr = (process.stderr or "").strip()
             raise RuntimeError(f"Failed to compile MJML: {stderr}")
