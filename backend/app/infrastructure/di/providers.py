@@ -1,18 +1,37 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 from redis.asyncio import Redis
 
+from app.adapters.outbound.db.repositories.document_repository_impl import (
+    ChunkRepositoryImpl,
+    DocumentRepositoryImpl,
+    SyncChunkRepositoryImpl,
+    SyncDocumentRepositoryImpl,
+)
 from app.adapters.outbound.db.repositories.password_hasher_impl import BcryptPasswordHasher
 from app.adapters.outbound.db.repositories.token_provider_impl import JwtTokenProvider
 from app.adapters.outbound.db.repositories.uow_impl import SQLAlchemyUnitOfWork
 from app.adapters.outbound.db.session import SessionFactory
 from app.adapters.outbound.email.email_sender import NullEmailSender, SmtpEmailSender
+from app.adapters.outbound.loaders.docx_loader import DocxDocumentLoader
+from app.adapters.outbound.loaders.pdf_loader import PDFDocumentLoader
+from app.adapters.outbound.loaders.text_loader import TextDocumentLoader
+from app.adapters.outbound.storage.local_storage import LocalObjectStorage
 from app.application.services.iam_service import IAMService
+from app.application.use_cases.ingest_document import IngestDocumentService
 from app.application.use_cases.login_user_service import LoginUserService
+from app.application.use_cases.process_document_chunks import ProcessDocumentChunksService
 from app.application.use_cases.register_user_service import RegisterUserService
 from app.application.use_cases.switch_org_service import SwitchOrganizationService
-from app.infrastructure.config import settings
+from app.domain.ports.outbound.chunk_repository import ChunkRepository
+from app.domain.ports.outbound.document_loader import DocumentLoaderRegistry
+from app.domain.ports.outbound.document_repository import DocumentRepository
 from app.domain.ports.outbound.email_sender import EmailSender
+from app.domain.ports.outbound.object_storage import ObjectStorage
+from app.domain.services.chunking_policy import ChunkingConfig
+from app.infrastructure.config import settings
 from app.infrastructure.security.redis_services import InvitationService, ThrottleService, TokenService
 
 
@@ -113,4 +132,71 @@ def get_switch_org_service():
         token_provider=get_token_provider(),
         access_token_ttl_seconds=settings.access_token_ttl_seconds,
         refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Document ingestion wiring
+# ---------------------------------------------------------------------------
+
+@lru_cache(maxsize=1)
+def get_object_storage() -> ObjectStorage:
+    """Singleton local-disk storage; swap for S3/Supabase here when ready."""
+    return LocalObjectStorage(base_dir=settings.document_storage_dir)
+
+
+@lru_cache(maxsize=1)
+def get_document_loader_registry() -> DocumentLoaderRegistry:
+    return DocumentLoaderRegistry(
+        loaders=[
+            TextDocumentLoader(),
+            PDFDocumentLoader(),
+            DocxDocumentLoader(),
+        ]
+    )
+
+
+@lru_cache(maxsize=1)
+def get_chunking_config() -> ChunkingConfig:
+    return ChunkingConfig(
+        chunk_size_chars=settings.document_chunk_size_chars,
+        chunk_overlap_chars=settings.document_chunk_overlap_chars,
+    )
+
+
+def get_document_repository() -> DocumentRepository:
+    return DocumentRepositoryImpl(session_factory=SessionFactory)
+
+
+def get_chunk_repository() -> ChunkRepository:
+    return ChunkRepositoryImpl(session_factory=SessionFactory)
+
+
+def _enqueue_process_document(*, document_id: str) -> None:
+    """Send a Celery message to process the given document.
+
+    Imported lazily to avoid circular imports during ``celery_app`` bootstrap.
+    """
+    from app.application.tasks.document_tasks import process_document_task
+
+    process_document_task.delay(document_id=document_id)
+
+
+def get_ingest_document_service() -> IngestDocumentService:
+    return IngestDocumentService(
+        document_repository=get_document_repository(),
+        object_storage=get_object_storage(),
+        enqueue_processing=_enqueue_process_document,
+        max_size_bytes=settings.document_max_size_bytes,
+        allowed_source_types=settings.document_allowed_source_types,
+    )
+
+
+def get_process_document_chunks_service() -> ProcessDocumentChunksService:
+    return ProcessDocumentChunksService(
+        document_repository=SyncDocumentRepositoryImpl(),
+        chunk_repository=SyncChunkRepositoryImpl(),
+        object_storage=get_object_storage(),
+        loader_registry=get_document_loader_registry(),
+        chunking_config=get_chunking_config(),
     )

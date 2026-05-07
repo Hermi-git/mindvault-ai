@@ -11,3 +11,10 @@ class Container:
     get_login_user_service = staticmethod(providers.get_login_user_service)
     get_switch_org_service = staticmethod(providers.get_switch_org_service)
     get_iam_service = staticmethod(providers.get_iam_service)
+    get_object_storage = staticmethod(providers.get_object_storage)
+    get_document_repository = staticmethod(providers.get_document_repository)
+    get_chunk_repository = staticmethod(providers.get_chunk_repository)
+    get_ingest_document_service = staticmethod(providers.get_ingest_document_service)
+    get_process_document_chunks_service = staticmethod(
+        providers.get_process_document_chunks_service
+    )
