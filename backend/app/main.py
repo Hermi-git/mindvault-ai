@@ -5,7 +5,7 @@ import app.infrastructure.celery_app  # noqa: F401
 
 from fastapi import FastAPI
 
-from app.adapters.inbound.api.v1 import routes_auth
+from app.adapters.inbound.api.v1 import routes_auth, routes_documents
 
 app = FastAPI(
     title="MindVault AI Backend",
@@ -17,6 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(routes_auth.router, prefix="/api/v1")
+app.include_router(routes_documents.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])

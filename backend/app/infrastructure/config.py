@@ -35,6 +35,33 @@ class Settings:
     # When set (and different from celery_task_default_queue), invitation emails route here; worker uses -Q default,email
     celery_email_queue: str = os.getenv("CELERY_EMAIL_QUEUE", "default")
     celery_timezone: str = os.getenv("CELERY_TIMEZONE", "UTC")
+
+    # Document ingestion / chunking
+    document_storage_dir: str = os.getenv("DOCUMENT_STORAGE_DIR", "/app/var/storage")
+    document_max_size_bytes: int = int(os.getenv("DOCUMENT_MAX_SIZE_BYTES", str(25 * 1024 * 1024)))
+    document_chunk_size_chars: int = int(os.getenv("DOCUMENT_CHUNK_SIZE_CHARS", "1500"))
+    document_chunk_overlap_chars: int = int(os.getenv("DOCUMENT_CHUNK_OVERLAP_CHARS", "200"))
+    document_allowed_source_types_raw: str = os.getenv(
+        "DOCUMENT_ALLOWED_SOURCE_TYPES",
+        ",".join(
+            [
+                "text",
+                "markdown",
+                "txt",
+                "md",
+                "text/plain",
+                "text/markdown",
+                "pdf",
+                "application/pdf",
+                "docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ]
+        ),
+    )
+
+    @property
+    def document_allowed_source_types(self) -> set[str]:
+        return {t.strip().lower() for t in self.document_allowed_source_types_raw.split(",") if t.strip()}
     
 
 
