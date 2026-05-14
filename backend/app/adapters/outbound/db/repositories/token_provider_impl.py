@@ -23,25 +23,33 @@ class JwtTokenProvider(TokenProvider):
         self._issuer = issuer
         self._audience = audience
 
-    def issue_access_token(self, *, claims: dict[str, Any], expires_in_seconds: int) -> str:
+    def issue_access_token(
+        self, *, claims: dict[str, Any], expires_in_seconds: int
+    ) -> str:
         payload = dict(claims)
         now = datetime.now(timezone.utc)
         payload["jti"] = str(uuid4())
         payload["iat"] = now
         payload["nbf"] = now
-        payload["exp"] = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+        payload["exp"] = datetime.now(timezone.utc) + timedelta(
+            seconds=expires_in_seconds
+        )
         payload["type"] = "access"
         payload["iss"] = self._issuer
         payload["aud"] = self._audience
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
-    def issue_refresh_token(self, *, claims: dict[str, Any], expires_in_seconds: int) -> str:
+    def issue_refresh_token(
+        self, *, claims: dict[str, Any], expires_in_seconds: int
+    ) -> str:
         payload = dict(claims)
         now = datetime.now(timezone.utc)
         payload["jti"] = str(uuid4())
         payload["iat"] = now
         payload["nbf"] = now
-        payload["exp"] = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+        payload["exp"] = datetime.now(timezone.utc) + timedelta(
+            seconds=expires_in_seconds
+        )
         payload["type"] = "refresh"
         payload["iss"] = self._issuer
         payload["aud"] = self._audience

@@ -1,11 +1,20 @@
-
 from __future__ import annotations
 
 import logging
 import mimetypes
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 
 from app.application.dto.document_schemas import (
     DocumentChunkResponse,
@@ -91,7 +100,9 @@ def _infer_source_type(filename: str | None, content_type: str | None) -> str:
 )
 async def upload_document(
     file: UploadFile = File(..., description="The document file to ingest"),
-    title: str | None = Form(default=None, description="Optional title (defaults to filename)"),
+    title: str | None = Form(
+        default=None, description="Optional title (defaults to filename)"
+    ),
     source_type: str | None = Form(
         default=None,
         description="Override detected source type (e.g. text, markdown)",
@@ -101,13 +112,19 @@ async def upload_document(
     org_id_str = claims.get("org_id")
     user_id_str = claims.get("sub")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
 
     raw = await file.read()
     if not raw:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty"
+        )
 
-    inferred_type = (source_type or _infer_source_type(file.filename, file.content_type)).lower()
+    inferred_type = (
+        source_type or _infer_source_type(file.filename, file.content_type)
+    ).lower()
     final_title = (title or file.filename or "document").strip()
 
     command = IngestDocumentCommand(
@@ -123,12 +140,16 @@ async def upload_document(
     try:
         document = await service.execute(command)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
     return _to_response(document)
 
 
-@router.get("", response_model=DocumentListResponse, summary="List documents in active org")
+@router.get(
+    "", response_model=DocumentListResponse, summary="List documents in active org"
+)
 async def list_documents(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -141,7 +162,9 @@ async def list_documents(
 ):
     org_id_str = claims.get("org_id")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
     repo = get_document_repository()
     items, total = await repo.list_by_org_id(
         org_id=UUID(org_id_str),
@@ -157,15 +180,21 @@ async def list_documents(
     )
 
 
-@router.get("/{document_id}", response_model=DocumentResponse, summary="Fetch document by id")
+@router.get(
+    "/{document_id}", response_model=DocumentResponse, summary="Fetch document by id"
+)
 async def get_document(document_id: UUID, claims: dict = Depends(get_current_claims)):
     org_id_str = claims.get("org_id")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
     repo = get_document_repository()
     doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
     return _to_response(doc)
 
 
@@ -174,14 +203,20 @@ async def get_document(document_id: UUID, claims: dict = Depends(get_current_cla
     response_model=DocumentChunksResponse,
     summary="List chunks produced for a document",
 )
-async def list_document_chunks(document_id: UUID, claims: dict = Depends(get_current_claims)):
+async def list_document_chunks(
+    document_id: UUID, claims: dict = Depends(get_current_claims)
+):
     org_id_str = claims.get("org_id")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
     doc_repo = get_document_repository()
     doc = await doc_repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
     chunk_repo = get_chunk_repository()
     chunks = await chunk_repo.list_by_document(document_id=document_id)
     return DocumentChunksResponse(
@@ -200,17 +235,27 @@ async def list_document_chunks(document_id: UUID, claims: dict = Depends(get_cur
     )
 
 
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a document")
-async def delete_document(document_id: UUID, claims: dict = Depends(get_current_claims)):
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a document",
+)
+async def delete_document(
+    document_id: UUID, claims: dict = Depends(get_current_claims)
+):
     import asyncio
 
     org_id_str = claims.get("org_id")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
     repo = get_document_repository()
     doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
 
     await repo.delete(document_id=document_id, org_id=UUID(org_id_str))
     storage = get_object_storage()
@@ -222,16 +267,26 @@ async def delete_document(document_id: UUID, claims: dict = Depends(get_current_
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/{document_id}/status", response_model=DocumentResponse, summary="Get document processing status")
-async def get_document_status(document_id: UUID, claims: dict = Depends(get_current_claims)):
+@router.get(
+    "/{document_id}/status",
+    response_model=DocumentResponse,
+    summary="Get document processing status",
+)
+async def get_document_status(
+    document_id: UUID, claims: dict = Depends(get_current_claims)
+):
     """Get the current processing status of a document (pending/processing/ready/failed)."""
     org_id_str = claims.get("org_id")
     if not org_id_str:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
+        )
     repo = get_document_repository()
     doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
     return _to_response(doc)
 
 

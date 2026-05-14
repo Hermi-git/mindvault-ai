@@ -91,7 +91,11 @@ class IngestDocumentService(IngestDocumentUseCase):
             status=DocumentStatus.PENDING,
             metadata={
                 "content_type": command.content_type or "",
-                "uploaded_by": str(command.uploaded_by_user_id) if command.uploaded_by_user_id else None,
+                "uploaded_by": (
+                    str(command.uploaded_by_user_id)
+                    if command.uploaded_by_user_id
+                    else None
+                ),
                 "size_bytes": len(command.data),
             },
         )
@@ -104,7 +108,9 @@ class IngestDocumentService(IngestDocumentUseCase):
         except Exception:
             # Don't lose the document if the broker is briefly unavailable —
             # mark it failed so an operator can retry.
-            logger.exception("Failed to enqueue processing for document %s", document_id)
+            logger.exception(
+                "Failed to enqueue processing for document %s", document_id
+            )
             await self._documents.update_status(
                 document_id=document_id,
                 status=DocumentStatus.FAILED.value,

@@ -13,7 +13,9 @@ from abc import ABC, abstractmethod
 
 class ObjectStorage(ABC):
     @abstractmethod
-    def put_object(self, *, key: str, data: bytes, content_type: str | None = None) -> str:
+    def put_object(
+        self, *, key: str, data: bytes, content_type: str | None = None
+    ) -> str:
         """Persist ``data`` under ``key``; return the canonical key actually stored."""
 
     @abstractmethod

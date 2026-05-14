@@ -23,7 +23,7 @@ class ParserFactory:
         self._extension_map = {
             ".pdf": self._pdf_parser,
             ".docx": self._docx_parser,
-            ".doc": self._docx_parser,  
+            ".doc": self._docx_parser,
             ".txt": self._text_parser,
             ".text": self._text_parser,
             # ".md": self._markdown_parser,

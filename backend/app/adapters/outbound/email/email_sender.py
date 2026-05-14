@@ -57,7 +57,11 @@ class SmtpEmailSender(EmailSender):
         self._from_email = from_email
         self._from_name = from_name.strip() or from_email
         self._mjml_binary_path = mjml_binary_path
-        tpl_dir = Path(templates_dir) if templates_dir is not None else Path(__file__).resolve().parent
+        tpl_dir = (
+            Path(templates_dir)
+            if templates_dir is not None
+            else Path(__file__).resolve().parent
+        )
         self._jinja_env = Environment(
             loader=FileSystemLoader(str(tpl_dir)),
             autoescape=select_autoescape(["html", "xml"]),
@@ -112,7 +116,9 @@ class SmtpEmailSender(EmailSender):
             smtp.send_message(msg)
 
     def _compile_mjml(self, mjml_source: str) -> str:
-        with tempfile.NamedTemporaryFile("w", suffix=".mjml", encoding="utf-8", delete=True) as tmp:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".mjml", encoding="utf-8", delete=True
+        ) as tmp:
             tmp.write(mjml_source)
             tmp.flush()
             process = subprocess.run(
@@ -127,7 +133,9 @@ class SmtpEmailSender(EmailSender):
             raise RuntimeError(f"Failed to compile MJML: {stderr}")
         stdout = process.stdout or ""
         if not stdout.strip():
-            raise RuntimeError("MJML compiler produced empty output; is `mjml` installed and on PATH?")
+            raise RuntimeError(
+                "MJML compiler produced empty output; is `mjml` installed and on PATH?"
+            )
         return stdout
 
     @staticmethod
@@ -143,14 +151,12 @@ class SmtpEmailSender(EmailSender):
         safe_url = html_module.escape(invite_url, quote=True)
         exp_block = ""
         if expires_in_hours:
-            exp_block = (
-                f"<p>This invitation expires in <strong>{int(expires_in_hours)}</strong> hours.</p>"
-            )
+            exp_block = f"<p>This invitation expires in <strong>{int(expires_in_hours)}</strong> hours.</p>"
         return (
-            "<!DOCTYPE html><html><body style=\"font-family:system-ui,sans-serif;line-height:1.5;\">"
+            '<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.5;">'
             f"<p>You've been invited to join <strong>{safe_org}</strong> on MindVault as <strong>{safe_role}</strong>.</p>"
             f"{exp_block}"
-            f"<p><a href=\"{safe_url}\">Accept invitation</a></p>"
-            f"<p style=\"font-size:0.9em;color:#555;\">If the button does not work, copy this link:<br>{safe_url}</p>"
+            f'<p><a href="{safe_url}">Accept invitation</a></p>'
+            f'<p style="font-size:0.9em;color:#555;">If the button does not work, copy this link:<br>{safe_url}</p>'
             "</body></html>"
         )

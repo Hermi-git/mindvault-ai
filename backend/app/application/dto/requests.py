@@ -55,4 +55,6 @@ class MembersListQuery(BaseModel):
 class PatchMemberRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     role: StrictStr | None = Field(default=None, pattern="^(OWNER|ADMIN|MEMBER)$")
-    status: StrictStr | None = Field(default=None, pattern="^(ACTIVE|SUSPENDED|INVITED)$")
+    status: StrictStr | None = Field(
+        default=None, pattern="^(ACTIVE|SUSPENDED|INVITED)$"
+    )

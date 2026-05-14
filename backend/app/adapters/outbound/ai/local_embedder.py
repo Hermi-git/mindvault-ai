@@ -36,9 +36,9 @@ class SyncLocalBGEAdapter(SyncEmbeddingProvider):
 
 class AsyncLocalBGEAdapter(EmbeddingProvider):
     def __init__(
-        self, 
+        self,
         sync_impl: SyncEmbeddingProvider | None = None,
-        model_name: str = "BAAI/bge-small-en-v1.5"
+        model_name: str = "BAAI/bge-small-en-v1.5",
     ) -> None:
         if sync_impl is not None:
             self._sync_impl = sync_impl
@@ -51,5 +51,3 @@ class AsyncLocalBGEAdapter(EmbeddingProvider):
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return await asyncio.to_thread(self._sync_impl.embed_texts, texts)
-
-

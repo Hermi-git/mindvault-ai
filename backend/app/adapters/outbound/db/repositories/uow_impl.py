@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.adapters.outbound.db.repositories.membership_repository_impl import MembershipRepositoryImpl
-from app.adapters.outbound.db.repositories.organization_repository_impl import OrganizationRepositoryImpl
-from app.adapters.outbound.db.repositories.user_repository_impl import UserRepositoryImpl
+from app.adapters.outbound.db.repositories.membership_repository_impl import (
+    MembershipRepositoryImpl,
+)
+from app.adapters.outbound.db.repositories.organization_repository_impl import (
+    OrganizationRepositoryImpl,
+)
+from app.adapters.outbound.db.repositories.user_repository_impl import (
+    UserRepositoryImpl,
+)
 from app.domain.ports.outbound.unit_of_work import UnitOfWork
 
 

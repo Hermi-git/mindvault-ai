@@ -26,7 +26,6 @@ from pathlib import Path
 
 from app.domain.ports.outbound.object_storage import ObjectStorage
 
-
 FILE_MODE = 0o644
 DIR_MODE = 0o755
 
@@ -45,7 +44,9 @@ class LocalObjectStorage(ObjectStorage):
             raise ValueError("Storage key escapes base dir")
         return path
 
-    def put_object(self, *, key: str, data: bytes, content_type: str | None = None) -> str:
+    def put_object(
+        self, *, key: str, data: bytes, content_type: str | None = None
+    ) -> str:
         target = self._resolve(key)
         target.parent.mkdir(parents=True, exist_ok=True)
         # Make every directory between base_dir and the file traversable so

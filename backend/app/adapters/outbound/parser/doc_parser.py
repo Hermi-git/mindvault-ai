@@ -16,7 +16,7 @@ class DocxParser:
             data = file_stream.read()
             if not data:
                 return ""
-            
+
             doc = DocxDocument(io.BytesIO(data))
         except PackageNotFoundError as exc:
             logger.exception("Invalid or corrupted DOCX file")
@@ -50,20 +50,19 @@ class DocxParser:
     @staticmethod
     def _extract_table_text(tbl_element) -> str:
         rows: list[str] = []
-        
+
         for row in tbl_element.iter(qn("w:tr")):
             cells: list[str] = []
-            
+
             for cell in row.iter(qn("w:tc")):
                 cell_paragraphs = [
-                    DocxParser._extract_paragraph_text(p) 
-                    for p in cell.iter(qn("w:p"))
+                    DocxParser._extract_paragraph_text(p) for p in cell.iter(qn("w:p"))
                 ]
                 cell_text = " ".join(p for p in cell_paragraphs if p).strip()
                 if cell_text:
                     cells.append(cell_text)
-            
+
             if cells:
                 rows.append(" | ".join(cells))
-        
+
         return "\n".join(rows) if rows else ""

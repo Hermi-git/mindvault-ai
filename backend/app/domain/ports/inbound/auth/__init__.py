@@ -1,4 +1,8 @@
-from app.domain.ports.inbound.auth.login_inbound_contracts import LoginCommand, LoginUseCase, TokenPair
+from app.domain.ports.inbound.auth.login_inbound_contracts import (
+    LoginCommand,
+    LoginUseCase,
+    TokenPair,
+)
 from app.domain.ports.inbound.auth.org_switch_inbound_contracts import (
     SwitchOrganizationCommand,
     SwitchOrganizationResult,

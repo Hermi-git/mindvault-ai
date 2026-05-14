@@ -21,20 +21,15 @@ class PineconeVectorStore(VectorStore):
         logger.info("Pinecone vector store initialized")
 
     async def upsert(
-        self,
-        *,
-        vectors: list[dict[str, Any]],
-        namespace: str | None = None
+        self, *, vectors: list[dict[str, Any]], namespace: str | None = None
     ) -> None:
         if not vectors:
             logger.debug("No vectors to upsert")
             return
-        
+
         try:
             await asyncio.to_thread(
-                self._index.upsert,
-                vectors=vectors,
-                namespace=namespace
+                self._index.upsert, vectors=vectors, namespace=namespace
             )
             logger.debug("Upserted %d vectors to Pinecone", len(vectors))
         except Exception as exc:
@@ -47,7 +42,7 @@ class PineconeVectorStore(VectorStore):
         query_vector: list[float],
         org_id: UUID | str,
         top_k: int = 5,
-        namespace: str | None = None
+        namespace: str | None = None,
     ) -> list[dict[str, Any]]:
         if not query_vector or not len(query_vector):
             logger.warning("Empty query vector provided")
@@ -60,67 +55,56 @@ class PineconeVectorStore(VectorStore):
                 top_k=top_k,
                 namespace=namespace,
                 filter={"org_id": {"$eq": str(org_id)}},
-                include_metadata=True
+                include_metadata=True,
             )
-            
+
             results = []
             for match in response.matches:
-                results.append({
-                    "id": match.id,
-                    "score": match.score,
-                    "metadata": match.metadata or {}
-                })
-            
+                results.append(
+                    {
+                        "id": match.id,
+                        "score": match.score,
+                        "metadata": match.metadata or {},
+                    }
+                )
+
             logger.debug(
-                "Query returned %d matches for org_id=%s",
-                len(results),
-                org_id
+                "Query returned %d matches for org_id=%s", len(results), org_id
             )
             return results
         except Exception as exc:
             logger.exception("Failed to query vector store")
             raise
 
-    async def delete_by_doc_id(
-        self,
-        *,
-        doc_id: UUID | str,
-        org_id: UUID | str
-    ) -> None:
+    async def delete_by_doc_id(self, *, doc_id: UUID | str, org_id: UUID | str) -> None:
         try:
             response = await asyncio.to_thread(
                 self._index.query,
-                vector=[0.0] * 1536,  
-                top_k=10000,  
+                vector=[0.0] * 1536,
+                top_k=10000,
                 namespace=None,
-                filter={
-                    "org_id": {"$eq": str(org_id)},
-                    "doc_id": {"$eq": str(doc_id)}
-                },
-                include_metadata=True
+                filter={"org_id": {"$eq": str(org_id)}, "doc_id": {"$eq": str(doc_id)}},
+                include_metadata=True,
             )
-            
+
             ids_to_delete = [match.id for match in response.matches]
-            
+
             if ids_to_delete:
                 await asyncio.to_thread(
-                    self._index.delete,
-                    ids=ids_to_delete,
-                    namespace=None
+                    self._index.delete, ids=ids_to_delete, namespace=None
                 )
                 logger.info(
                     "Deleted %d vectors for doc_id=%s, org_id=%s",
                     len(ids_to_delete),
                     doc_id,
-                    org_id
+                    org_id,
                 )
             else:
                 logger.debug(
                     "No vectors found to delete for doc_id=%s, org_id=%s",
                     doc_id,
-                    org_id
+                    org_id,
                 )
         except Exception as exc:
             logger.exception("Failed to delete vectors for doc_id=%s", doc_id)
             raise
-

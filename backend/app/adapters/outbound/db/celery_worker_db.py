@@ -36,7 +36,9 @@ def _get_sessionmaker() -> sessionmaker[Session]:
             pool_size=2,
             max_overflow=2,
         )
-        _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, class_=Session)
+        _SessionLocal = sessionmaker(
+            bind=_engine, expire_on_commit=False, class_=Session
+        )
     return _SessionLocal
 
 

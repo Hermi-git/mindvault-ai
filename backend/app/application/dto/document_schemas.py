@@ -50,4 +50,6 @@ class DocumentListQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     page: StrictInt = Field(default=1, ge=1)
     page_size: StrictInt = Field(default=20, ge=1, le=100)
-    status: StrictStr | None = Field(default=None, pattern="^(pending|processing|ready|failed)$")
+    status: StrictStr | None = Field(
+        default=None, pattern="^(pending|processing|ready|failed)$"
+    )

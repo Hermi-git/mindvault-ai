@@ -11,7 +11,9 @@ from app.adapters.outbound.db.repositories.document_repository_impl import (
     SyncChunkRepositoryImpl,
     SyncDocumentRepositoryImpl,
 )
-from app.adapters.outbound.db.repositories.password_hasher_impl import BcryptPasswordHasher
+from app.adapters.outbound.db.repositories.password_hasher_impl import (
+    BcryptPasswordHasher,
+)
 from app.adapters.outbound.db.repositories.token_provider_impl import JwtTokenProvider
 from app.adapters.outbound.db.repositories.uow_impl import SQLAlchemyUnitOfWork
 from app.adapters.outbound.db.session import SessionFactory
@@ -25,7 +27,9 @@ from app.application.services.iam_service import IAMService
 from app.application.services.ingestion_service import IngestionService
 from app.application.use_cases.ingest_document import IngestDocumentService
 from app.application.use_cases.login_user_service import LoginUserService
-from app.application.use_cases.process_document_chunks import ProcessDocumentChunksService
+from app.application.use_cases.process_document_chunks import (
+    ProcessDocumentChunksService,
+)
 from app.application.use_cases.register_user_service import RegisterUserService
 from app.application.use_cases.switch_org_service import SwitchOrganizationService
 from app.domain.ports.outbound.chunk_repository import ChunkRepository
@@ -35,7 +39,11 @@ from app.domain.ports.outbound.email_sender import EmailSender
 from app.domain.ports.outbound.object_storage import ObjectStorage
 from app.domain.services.chunking_policy import ChunkingConfig
 from app.infrastructure.config import settings
-from app.infrastructure.security.redis_services import InvitationService, ThrottleService, TokenService
+from app.infrastructure.security.redis_services import (
+    InvitationService,
+    ThrottleService,
+    TokenService,
+)
 
 
 def get_uow_factory():
@@ -141,6 +149,7 @@ def get_switch_org_service():
 # ---------------------------------------------------------------------------
 # Document ingestion wiring
 # ---------------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def get_object_storage() -> ObjectStorage:

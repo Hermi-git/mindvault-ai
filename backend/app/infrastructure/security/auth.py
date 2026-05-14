@@ -12,7 +12,9 @@ async def get_current_claims(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ):
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token"
+        )
     token_service = get_token_service()
     try:
         claims = token_service.decode(credentials.credentials)
@@ -28,4 +30,6 @@ async def get_current_claims(
             raise ValueError("Session revoked")
         return claims
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc

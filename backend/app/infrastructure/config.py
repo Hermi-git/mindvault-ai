@@ -14,7 +14,9 @@ class Settings:
     jwt_issuer: str = os.getenv("JWT_ISSUER", "mindvault-ai")
     jwt_audience: str = os.getenv("JWT_AUDIENCE", "mindvault-clients")
     access_token_ttl_seconds: int = int(os.getenv("ACCESS_TOKEN_TTL_SECONDS", "3600"))
-    refresh_token_ttl_seconds: int = int(os.getenv("REFRESH_TOKEN_TTL_SECONDS", "604800"))
+    refresh_token_ttl_seconds: int = int(
+        os.getenv("REFRESH_TOKEN_TTL_SECONDS", "604800")
+    )
     mfa_attempt_ttl_seconds: int = int(os.getenv("MFA_ATTEMPT_TTL_SECONDS", "300"))
     invitation_ttl_seconds: int = int(os.getenv("INVITATION_TTL_SECONDS", "172800"))
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -28,9 +30,13 @@ class Settings:
     # SMTP_* read at access time (see properties below) so Celery workers always see
     # the current process env — not a snapshot from the first import (fixes empty SMTP
     # when the worker process differs from the API or env is applied after early imports).
-    frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+    frontend_base_url: str = os.getenv(
+        "FRONTEND_BASE_URL", "http://localhost:5173"
+    ).rstrip("/")
     celery_broker_url: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
-    celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    celery_result_backend: str = os.getenv(
+        "CELERY_RESULT_BACKEND", "redis://localhost:6379/2"
+    )
     celery_task_default_queue: str = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "default")
     # When set (and different from celery_task_default_queue), invitation emails route here; worker uses -Q default,email
     celery_email_queue: str = os.getenv("CELERY_EMAIL_QUEUE", "default")
@@ -38,9 +44,13 @@ class Settings:
 
     # Document ingestion / chunking
     document_storage_dir: str = os.getenv("DOCUMENT_STORAGE_DIR", "/app/var/storage")
-    document_max_size_bytes: int = int(os.getenv("DOCUMENT_MAX_SIZE_BYTES", str(25 * 1024 * 1024)))
+    document_max_size_bytes: int = int(
+        os.getenv("DOCUMENT_MAX_SIZE_BYTES", str(25 * 1024 * 1024))
+    )
     document_chunk_size_chars: int = int(os.getenv("DOCUMENT_CHUNK_SIZE_CHARS", "1500"))
-    document_chunk_overlap_chars: int = int(os.getenv("DOCUMENT_CHUNK_OVERLAP_CHARS", "200"))
+    document_chunk_overlap_chars: int = int(
+        os.getenv("DOCUMENT_CHUNK_OVERLAP_CHARS", "200")
+    )
     document_allowed_source_types_raw: str = os.getenv(
         "DOCUMENT_ALLOWED_SOURCE_TYPES",
         ",".join(
@@ -65,9 +75,11 @@ class Settings:
 
     @property
     def document_allowed_source_types(self) -> set[str]:
-        return {t.strip().lower() for t in self.document_allowed_source_types_raw.split(",") if t.strip()}
-    
-
+        return {
+            t.strip().lower()
+            for t in self.document_allowed_source_types_raw.split(",")
+            if t.strip()
+        }
 
     def validate(self) -> None:
         # Production hardening guardrails.
