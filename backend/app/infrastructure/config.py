@@ -59,6 +59,10 @@ class Settings:
         ),
     )
 
+    # Vector database (Pinecone)
+    pinecone_api_key: str = os.getenv("PINECONE_API_KEY", "")
+    pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME", "mindvault")
+
     @property
     def document_allowed_source_types(self) -> set[str]:
         return {t.strip().lower() for t in self.document_allowed_source_types_raw.split(",") if t.strip()}

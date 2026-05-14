@@ -1,0 +1,34 @@
+.git
+.gitignore
+.env
+.env.local
+.env.test.local
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+dist
+build
+.venv
+venv
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# tests
+tests/
+pytest.ini
+conftest.py
+
+# CI
+.github
+.editorconfig
+
+# misc
+README.md
+LICENSE
+var/

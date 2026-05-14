@@ -48,6 +48,7 @@ if (
 # Register task modules (``@shared_task`` binds them to this app when imported).
 import app.application.tasks.audit_tasks  # noqa: E402
 import app.application.tasks.document_tasks  # noqa: E402
+import app.application.tasks.ingestion_tasks  # noqa: E402
 import app.application.tasks.email_tasks  # noqa: E402
 
 __all__ = ["celery_app"]
