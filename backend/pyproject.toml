@@ -22,7 +22,6 @@ dependencies = [
   "pypdf>=4.0.0",
   "python-docx>=1.1.0",
   "sentence-transformers==2.7.0",
-  "transformers>=5.0.0rc3",
   "pymupdf>=1.24.2",
   "pinecone-client==3.2.2",
   "torch>=2.0.0",
