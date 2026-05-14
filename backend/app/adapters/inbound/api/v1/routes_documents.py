@@ -1,12 +1,3 @@
-"""HTTP routes for the documents bounded context.
-
-Endpoints:
-    POST   /documents          multipart upload — accepts a file and queues processing.
-    GET    /documents          paginated list scoped to caller's active org.
-    GET    /documents/{id}     fetch one document (status/metadata).
-    GET    /documents/{id}/chunks    list chunks (after status=ready).
-    DELETE /documents/{id}     remove document, chunks, and its stored bytes.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +13,7 @@ from app.application.dto.document_schemas import (
     DocumentListResponse,
     DocumentResponse,
 )
-from app.domain.entities.document import Document
+from app.domain.entities.document import Document, DocumentStatus
 from app.domain.ports.inbound.ingestion_use_case import IngestDocumentCommand
 from app.domain.services.chunking_policy import estimate_token_count
 from app.infrastructure.config import settings
@@ -59,11 +50,6 @@ _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 
 def _infer_source_type(filename: str | None, content_type: str | None) -> str:
-    """Map a (filename, MIME) pair to the canonical loader source_type.
-
-    Filename extension wins over a vague ``application/octet-stream`` content
-    type; explicit MIME types win otherwise.
-    """
     if content_type:
         ct = content_type.lower()
         if ct == "application/pdf":
@@ -234,6 +220,19 @@ async def delete_document(document_id: UUID, claims: dict = Depends(get_current_
         # File missing or transient FS error; we already removed the row.
         logger.exception("Failed to delete stored bytes for document %s", document_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/{document_id}/status", response_model=DocumentResponse, summary="Get document processing status")
+async def get_document_status(document_id: UUID, claims: dict = Depends(get_current_claims)):
+    """Get the current processing status of a document (pending/processing/ready/failed)."""
+    org_id_str = claims.get("org_id")
+    if not org_id_str:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active organization")
+    repo = get_document_repository()
+    doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return _to_response(doc)
 
 
 # Settings reference kept so static analyzers see the import is intentional and
