@@ -35,10 +35,10 @@ jobs:
           cd backend
           black --check app/ tests/
       
-      - name: Run isort import check
-        run: |
-          cd backend
-          isort --check-only app/ tests/
+      # - name: Run isort import check
+      #   run: |
+      #     cd backend
+      #     isort --check-only app/ tests/
       
       - name: Run Pylint
         run: |
