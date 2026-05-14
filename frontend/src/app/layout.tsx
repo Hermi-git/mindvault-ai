@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/infrastructure/providers';
+import { AuthInitializer } from '@/components/auth/AuthInitializer';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -33,6 +34,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-50">
         <QueryProvider>
+          <AuthInitializer />
           {children}
         </QueryProvider>
       </body>

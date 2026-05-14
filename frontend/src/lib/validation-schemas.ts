@@ -8,7 +8,9 @@ import { z } from 'zod';
 // Auth schemas
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters'),
   org_slug: z.string().optional(),
 });
 
@@ -16,7 +18,9 @@ export const RegisterSchema = z
   .object({
     email: z.string().email('Invalid email address'),
     full_name: z.string().min(2, 'Name must be at least 2 characters'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
     organization_name: z.string().min(2, 'Organization name must be at least 2 characters'),
   })

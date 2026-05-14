@@ -23,14 +23,14 @@ export function Navbar() {
             whileHover={{ scale: 1.05 }}
             className={cn(
               'w-10 h-10 rounded-lg',
-              'bg-gradient-to-br from-indigo-600 to-cyan-400',
+              'bg-linear-to-br from-indigo-600 to-cyan-400',
               'flex items-center justify-center font-bold text-white',
               'shadow-lg shadow-indigo-500/50'
             )}
           >
             MV
           </motion.div>
-          <span className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold bg-linear-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
             MindVault
           </span>
         </Link>
@@ -58,7 +58,7 @@ export function Navbar() {
                 <span
                   className={cn(
                     'absolute bottom-0 left-0 w-0 h-0.5',
-                    'bg-gradient-to-r from-indigo-600 to-cyan-400',
+                    'bg-linear-to-r from-indigo-600 to-cyan-400',
                     'group-hover:w-full transition-all duration-300'
                   )}
                 />
