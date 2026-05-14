@@ -47,6 +47,9 @@ build-backend = "setuptools.build_meta"
 # Setuptools auto-discovery would otherwise pick up sibling dirs (e.g. ``var/``
 # created by the document storage adapter, ``mindvault_backend.egg-info``).
 # Pin discovery to the actual application package only.
+[tool.isort]
+profile = "black"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
