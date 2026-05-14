@@ -16,16 +16,15 @@ from app.domain.entities.document import Document
 
 class DocumentRepository(ABC):
     @abstractmethod
-    async def save(self, document: Document) -> None:
-        ...
+    async def save(self, document: Document) -> None: ...
 
     @abstractmethod
-    async def get_by_id(self, *, document_id: UUID, org_id: UUID | None = None) -> Document | None:
-        ...
+    async def get_by_id(
+        self, *, document_id: UUID, org_id: UUID | None = None
+    ) -> Document | None: ...
 
     @abstractmethod
-    async def delete(self, *, document_id: UUID, org_id: UUID) -> None:
-        ...
+    async def delete(self, *, document_id: UUID, org_id: UUID) -> None: ...
 
     @abstractmethod
     async def list_by_org_id(
@@ -35,8 +34,7 @@ class DocumentRepository(ABC):
         page: int = 1,
         page_size: int = 20,
         status: str | None = None,
-    ) -> tuple[list[Document], int]:
-        ...
+    ) -> tuple[list[Document], int]: ...
 
     @abstractmethod
     async def update_status(
@@ -47,14 +45,12 @@ class DocumentRepository(ABC):
         error_message: str | None = None,
         chunk_count: int | None = None,
         token_count: int | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class SyncDocumentRepository(ABC):
     @abstractmethod
-    def get_by_id(self, *, document_id: UUID) -> Document | None:
-        ...
+    def get_by_id(self, *, document_id: UUID) -> Document | None: ...
 
     @abstractmethod
     def update_status(
@@ -65,5 +61,4 @@ class SyncDocumentRepository(ABC):
         error_message: str | None = None,
         chunk_count: int | None = None,
         token_count: int | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...

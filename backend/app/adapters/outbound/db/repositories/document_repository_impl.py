@@ -18,7 +18,10 @@ from app.adapters.outbound.db.celery_worker_db import worker_session
 from app.adapters.outbound.db.sqlalchemy_models import DocumentChunkORM, DocumentORM
 from app.domain.entities.document import Document, DocumentStatus
 from app.domain.entities.document_chunk import DocumentChunk
-from app.domain.ports.outbound.chunk_repository import ChunkRepository, SyncChunkRepository
+from app.domain.ports.outbound.chunk_repository import (
+    ChunkRepository,
+    SyncChunkRepository,
+)
 from app.domain.ports.outbound.document_repository import (
     DocumentRepository,
     SyncDocumentRepository,
@@ -68,7 +71,9 @@ class DocumentRepositoryImpl(DocumentRepository):
             )
             await session.commit()
 
-    async def get_by_id(self, *, document_id: UUID, org_id: UUID | None = None) -> Document | None:
+    async def get_by_id(
+        self, *, document_id: UUID, org_id: UUID | None = None
+    ) -> Document | None:
         async with self._session_factory() as session:
             stmt = select(DocumentORM).where(DocumentORM.id == document_id)
             if org_id is not None:
@@ -100,11 +105,21 @@ class DocumentRepositoryImpl(DocumentRepository):
                 base_stmt = base_stmt.where(DocumentORM.status == status)
             offset = max(0, (page - 1) * page_size)
             rows = (
-                await session.execute(
-                    base_stmt.order_by(DocumentORM.created_at.desc()).offset(offset).limit(page_size)
+                (
+                    await session.execute(
+                        base_stmt.order_by(DocumentORM.created_at.desc())
+                        .offset(offset)
+                        .limit(page_size)
+                    )
                 )
-            ).scalars().all()
-            count_stmt = select(func.count()).select_from(DocumentORM).where(DocumentORM.org_id == org_id)
+                .scalars()
+                .all()
+            )
+            count_stmt = (
+                select(func.count())
+                .select_from(DocumentORM)
+                .where(DocumentORM.org_id == org_id)
+            )
             if status:
                 count_stmt = count_stmt.where(DocumentORM.status == status)
             total = (await session.execute(count_stmt)).scalar_one()
@@ -119,7 +134,10 @@ class DocumentRepositoryImpl(DocumentRepository):
         chunk_count: int | None = None,
         token_count: int | None = None,
     ) -> None:
-        values: dict[str, object] = {"status": status, "updated_at": datetime.now(timezone.utc)}
+        values: dict[str, object] = {
+            "status": status,
+            "updated_at": datetime.now(timezone.utc),
+        }
         if error_message is not None:
             values["error_message"] = error_message
         if chunk_count is not None:
@@ -128,7 +146,9 @@ class DocumentRepositoryImpl(DocumentRepository):
             values["token_count"] = token_count
         async with self._session_factory() as session:
             await session.execute(
-                update(DocumentORM).where(DocumentORM.id == document_id).values(**values)
+                update(DocumentORM)
+                .where(DocumentORM.id == document_id)
+                .values(**values)
             )
             await session.commit()
 
@@ -152,7 +172,10 @@ class SyncDocumentRepositoryImpl(SyncDocumentRepository):
         chunk_count: int | None = None,
         token_count: int | None = None,
     ) -> None:
-        values: dict[str, object] = {"status": status, "updated_at": datetime.now(timezone.utc)}
+        values: dict[str, object] = {
+            "status": status,
+            "updated_at": datetime.now(timezone.utc),
+        }
         if error_message is not None:
             values["error_message"] = error_message
         if chunk_count is not None:
@@ -161,7 +184,9 @@ class SyncDocumentRepositoryImpl(SyncDocumentRepository):
             values["token_count"] = token_count
         with worker_session() as session:
             session.execute(
-                update(DocumentORM).where(DocumentORM.id == document_id).values(**values)
+                update(DocumentORM)
+                .where(DocumentORM.id == document_id)
+                .values(**values)
             )
             session.commit()
 
@@ -197,7 +222,9 @@ class SyncChunkRepositoryImpl(SyncChunkRepository):
     def delete_by_document(self, *, document_id: UUID) -> None:
         with worker_session() as session:
             session.execute(
-                delete(DocumentChunkORM).where(DocumentChunkORM.document_id == document_id)
+                delete(DocumentChunkORM).where(
+                    DocumentChunkORM.document_id == document_id
+                )
             )
             session.commit()
 
@@ -236,12 +263,16 @@ class ChunkRepositoryImpl(ChunkRepository):
     async def list_by_document(self, *, document_id: UUID) -> list[DocumentChunk]:
         async with self._session_factory() as session:
             rows = (
-                await session.execute(
-                    select(DocumentChunkORM)
-                    .where(DocumentChunkORM.document_id == document_id)
-                    .order_by(DocumentChunkORM.chunk_index.asc())
+                (
+                    await session.execute(
+                        select(DocumentChunkORM)
+                        .where(DocumentChunkORM.document_id == document_id)
+                        .order_by(DocumentChunkORM.chunk_index.asc())
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         return [
             DocumentChunk(
                 id=r.id,
@@ -264,6 +295,8 @@ class ChunkRepositoryImpl(ChunkRepository):
     async def delete_by_document(self, *, document_id: UUID) -> None:
         async with self._session_factory() as session:
             await session.execute(
-                delete(DocumentChunkORM).where(DocumentChunkORM.document_id == document_id)
+                delete(DocumentChunkORM).where(
+                    DocumentChunkORM.document_id == document_id
+                )
             )
             await session.commit()

@@ -15,16 +15,16 @@ from app.domain.ports.outbound.password_hasher import PasswordHasher
 from app.domain.value_objects.membership_status import MembershipStatus
 from app.domain.value_objects.user_role import UserRole
 
+
 class RegisterUserService(RegisterUserUseCase):
     def __init__(self, *, uow_factory, password_hasher: PasswordHasher) -> None:
         self._uow_factory = uow_factory
         self._password_hasher = password_hasher
-    
+
     def slugify_org_name(self, name: str) -> str:
         slug = name.lower().replace(" ", "-")
         slug = re.sub(r"[^a-z0-9\-]", "", slug)
         return slug
-
 
     async def _build_unique_org_slug(self, *, uow, org_name: str) -> str:
         base_slug = self.slugify_org_name(org_name)
@@ -49,7 +49,9 @@ class RegisterUserService(RegisterUserUseCase):
             if not command.organization_name:
                 raise ValueError("Organization name is required")
 
-            slug = await self._build_unique_org_slug(uow=uow, org_name=command.organization_name)
+            slug = await self._build_unique_org_slug(
+                uow=uow, org_name=command.organization_name
+            )
             org = Organization(
                 id=uuid4(),
                 name=command.organization_name,
@@ -61,7 +63,9 @@ class RegisterUserService(RegisterUserUseCase):
                 id=uuid4(),
                 email=command.email,
                 full_name=command.full_name,
-                password_hash=self._password_hasher.hash_password(plain_password=command.password),
+                password_hash=self._password_hasher.hash_password(
+                    plain_password=command.password
+                ),
             )
             await uow.users.create_user(user=user)
 

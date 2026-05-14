@@ -22,7 +22,9 @@ class SwitchOrganizationService(SwitchOrganizationUseCase):
         self._access_token_ttl_seconds = access_token_ttl_seconds
         self._refresh_token_ttl_seconds = refresh_token_ttl_seconds
 
-    async def execute(self, command: SwitchOrganizationCommand) -> SwitchOrganizationResult:
+    async def execute(
+        self, command: SwitchOrganizationCommand
+    ) -> SwitchOrganizationResult:
         async with self._uow_factory() as uow:
             membership = await uow.memberships.get_active_membership(
                 user_id=command.user_id,

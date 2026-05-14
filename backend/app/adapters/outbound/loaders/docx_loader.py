@@ -65,9 +65,7 @@ def _table_rows(tbl_element) -> list[str]:
     for row in tbl_element.iter(qn("w:tr")):
         cells: list[str] = []
         for cell in row.iter(qn("w:tc")):
-            cell_paragraphs = [
-                _paragraph_text(p) for p in cell.iter(qn("w:p"))
-            ]
+            cell_paragraphs = [_paragraph_text(p) for p in cell.iter(qn("w:p"))]
             cell_text = " ".join(p for p in cell_paragraphs if p).strip()
             if cell_text:
                 cells.append(cell_text)

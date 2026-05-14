@@ -55,7 +55,9 @@ def send_organization_invitation_email(
         )
         return
 
-    logger.info("Sending invitation email to %s via SMTP host %s", to_email, settings.smtp_host)
+    logger.info(
+        "Sending invitation email to %s via SMTP host %s", to_email, settings.smtp_host
+    )
     try:
         sender.send_invitation_email(
             to_email=to_email,

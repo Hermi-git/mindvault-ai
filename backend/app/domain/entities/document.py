@@ -6,21 +6,24 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+
 class DocumentStatus(str, Enum):
-    PENDING = "pending"       
-    PROCESSING = "processing" 
-    READY = "ready"           
-    FAILED = "failed"  
+    PENDING = "pending"
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+
 
 @dataclass(slots=True)
 class Document:
     """
     Represents one uploaded knowledge source owned by an organization.
     """
+
     id: UUID
     org_id: UUID
     title: str
-    source_type: str  
+    source_type: str
     storage_url: str
     checksum: str | None = None
     status: DocumentStatus = DocumentStatus.PENDING

@@ -42,12 +42,15 @@ if (
     and settings.celery_email_queue != settings.celery_task_default_queue
 ):
     celery_app.conf.task_routes = {
-        "mindvault.email.send_organization_invitation": {"queue": settings.celery_email_queue},
+        "mindvault.email.send_organization_invitation": {
+            "queue": settings.celery_email_queue
+        },
     }
 
 # Register task modules (``@shared_task`` binds them to this app when imported).
 import app.application.tasks.audit_tasks  # noqa: E402
 import app.application.tasks.document_tasks  # noqa: E402
+import app.application.tasks.ingestion_tasks  # noqa: E402
 import app.application.tasks.email_tasks  # noqa: E402
 
 __all__ = ["celery_app"]

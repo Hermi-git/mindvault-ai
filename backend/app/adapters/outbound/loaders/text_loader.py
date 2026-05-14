@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from app.domain.ports.outbound.document_loader import DocumentLoader
 
-
 _TEXT_TYPES = {"text", "txt", "text/plain"}
 _MD_TYPES = {"markdown", "md", "text/markdown"}
 _SUPPORTED = _TEXT_TYPES | _MD_TYPES

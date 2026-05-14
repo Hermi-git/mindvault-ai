@@ -18,7 +18,10 @@ class ChunkingConfig:
     def __post_init__(self) -> None:
         if self.chunk_size_chars <= 0:
             raise ValueError("chunk_size_chars must be > 0")
-        if self.chunk_overlap_chars < 0 or self.chunk_overlap_chars >= self.chunk_size_chars:
+        if (
+            self.chunk_overlap_chars < 0
+            or self.chunk_overlap_chars >= self.chunk_size_chars
+        ):
             raise ValueError("chunk_overlap_chars must be in [0, chunk_size_chars)")
 
 

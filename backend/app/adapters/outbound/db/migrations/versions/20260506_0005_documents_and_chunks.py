@@ -10,7 +10,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-
 revision = "20260506_0005"
 down_revision = "10df2a717cda"
 branch_labels = None
@@ -27,20 +26,41 @@ def upgrade() -> None:
         sa.Column("source_type", sa.String(length=50), nullable=False),
         sa.Column("storage_url", sa.String(length=1024), nullable=False),
         sa.Column("checksum", sa.String(length=255), nullable=True),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
-        sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="pending"
+        ),
+        sa.Column(
+            "metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("token_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error_message", sa.String(length=2048), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["uploaded_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["uploaded_by_user_id"], ["users.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_documents_org_id", "documents", ["org_id"], unique=False)
     op.create_index("ix_documents_status", "documents", ["status"], unique=False)
-    op.create_index("ix_documents_org_status", "documents", ["org_id", "status"], unique=False)
+    op.create_index(
+        "ix_documents_org_status", "documents", ["org_id", "status"], unique=False
+    )
 
     op.create_table(
         "document_chunks",
@@ -51,20 +71,42 @@ def upgrade() -> None:
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("content_hash", sa.String(length=128), nullable=False),
         sa.Column("embedding_id", sa.String(length=255), nullable=True),
-        sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column("citation_page_start", sa.Integer(), nullable=True),
         sa.Column("citation_page_end", sa.Integer(), nullable=True),
         sa.Column("citation_line_start", sa.Integer(), nullable=True),
         sa.Column("citation_line_end", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("document_id", "chunk_index", name="uq_chunks_doc_index"),
     )
-    op.create_index("ix_document_chunks_org_id", "document_chunks", ["org_id"], unique=False)
-    op.create_index("ix_document_chunks_document_id", "document_chunks", ["document_id"], unique=False)
-    op.create_index("ix_chunks_org_document", "document_chunks", ["org_id", "document_id"], unique=False)
+    op.create_index(
+        "ix_document_chunks_org_id", "document_chunks", ["org_id"], unique=False
+    )
+    op.create_index(
+        "ix_document_chunks_document_id",
+        "document_chunks",
+        ["document_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_chunks_org_document",
+        "document_chunks",
+        ["org_id", "document_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:

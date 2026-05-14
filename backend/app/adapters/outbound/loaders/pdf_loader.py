@@ -41,7 +41,9 @@ class PDFDocumentLoader(DocumentLoader):
             try:
                 # pypdf returns 0 if decryption fails or 1/2 on success.
                 if reader.decrypt("") == 0:
-                    logger.warning("Encrypted PDF could not be decrypted with empty password")
+                    logger.warning(
+                        "Encrypted PDF could not be decrypted with empty password"
+                    )
                     return ""
             except Exception:  # noqa: BLE001 — decryption can raise broadly
                 logger.exception("Failed to decrypt PDF")

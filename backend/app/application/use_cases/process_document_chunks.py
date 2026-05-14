@@ -71,7 +71,10 @@ class ProcessDocumentChunksService(ProcessDocumentChunksUseCase):
                     token_count=0,
                     error_message=None,
                 )
-                logger.info("Document %s produced 0 chunks (empty after normalization)", document_id)
+                logger.info(
+                    "Document %s produced 0 chunks (empty after normalization)",
+                    document_id,
+                )
                 return 0
 
             self._chunks.delete_by_document(document_id=document_id)

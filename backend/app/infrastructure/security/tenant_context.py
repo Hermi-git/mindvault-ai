@@ -13,13 +13,18 @@ def get_tenant_context(claims: dict = Depends(get_current_claims)) -> TenantCont
     user_id = claims.get("sub")
     role = claims.get("role", "member")
     if not org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing org context")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Missing org context"
+        )
 
     try:
         parsed_org_id = UUID(str(org_id))
         parsed_user_id = UUID(str(user_id)) if user_id else None
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claim format") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token claim format",
+        ) from exc
 
     return TenantContext(
         org_id=parsed_org_id,
