@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from redis.asyncio import Redis
 
+from app.adapters.outbound.ai.local_embedder import AsyncLocalBGEAdapter
 from app.adapters.outbound.db.repositories.document_repository_impl import (
     ChunkRepositoryImpl,
     DocumentRepositoryImpl,
@@ -19,7 +20,9 @@ from app.adapters.outbound.loaders.docx_loader import DocxDocumentLoader
 from app.adapters.outbound.loaders.pdf_loader import PDFDocumentLoader
 from app.adapters.outbound.loaders.text_loader import TextDocumentLoader
 from app.adapters.outbound.storage.local_storage import LocalObjectStorage
+from app.adapters.outbound.vector.pinecone_store import PineconeVectorStore
 from app.application.services.iam_service import IAMService
+from app.application.services.ingestion_service import IngestionService
 from app.application.use_cases.ingest_document import IngestDocumentService
 from app.application.use_cases.login_user_service import LoginUserService
 from app.application.use_cases.process_document_chunks import ProcessDocumentChunksService
@@ -173,13 +176,14 @@ def get_chunk_repository() -> ChunkRepository:
 
 
 def _enqueue_process_document(*, document_id: str) -> None:
-    """Send a Celery message to process the given document.
+    """Send a Celery message to ingest and process the given document.
 
     Imported lazily to avoid circular imports during ``celery_app`` bootstrap.
+    Uses the new ingestion task that handles parsing, chunking, embedding, and vector storage.
     """
-    from app.application.tasks.document_tasks import process_document_task
+    from app.application.tasks.ingestion_tasks import ingest_document_task
 
-    process_document_task.delay(document_id=document_id)
+    ingest_document_task.delay(document_id=document_id)
 
 
 def get_ingest_document_service() -> IngestDocumentService:
@@ -199,4 +203,31 @@ def get_process_document_chunks_service() -> ProcessDocumentChunksService:
         object_storage=get_object_storage(),
         loader_registry=get_document_loader_registry(),
         chunking_config=get_chunking_config(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_embedder() -> AsyncLocalBGEAdapter:
+    """Singleton embedder for text-to-vector conversion."""
+    return AsyncLocalBGEAdapter(model_name="BAAI/bge-small-en-v1.5")
+
+
+@lru_cache(maxsize=1)
+def get_vector_store() -> PineconeVectorStore:
+    """Singleton Pinecone vector store."""
+    return PineconeVectorStore(
+        api_key=settings.pinecone_api_key,
+        index_name=settings.pinecone_index_name,
+    )
+
+
+def get_ingestion_service() -> IngestionService:
+    """Get the ingestion service with all dependencies."""
+    return IngestionService(
+        storage=get_object_storage(),
+        repository=get_document_repository(),
+        parser=None,  # Not used, IngestionService uses ParserFactory internally
+        embedder=get_embedder(),
+        vector_store=get_vector_store(),
+        uow_factory=get_uow_factory(),
     )
