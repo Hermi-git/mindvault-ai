@@ -26,10 +26,12 @@ def _to_domain(model: UserORM) -> User:
         updated_at=model.updated_at,
     )
 
+
 class UserRepositoryImpl(UserRepository):
-    def __init__(self, *, db:AsyncSession) -> None:
+    def __init__(self, *, db: AsyncSession) -> None:
         self._db = db
-    async def create_user(self, *,user:User) -> User:
+
+    async def create_user(self, *, user: User) -> User:
         row = UserORM(
             id=user.id,
             email=user.email,
@@ -46,16 +48,16 @@ class UserRepositoryImpl(UserRepository):
         await self._db.flush()
         return _to_domain(row)
 
-    async def get_user_by_id(self, *,user_id:UUID) -> User | None:
-        row = await self._db.get(UserORM,user_id)
+    async def get_user_by_id(self, *, user_id: UUID) -> User | None:
+        row = await self._db.get(UserORM, user_id)
         return _to_domain(row) if row else None
 
-    async def get_user_by_email(self, *,email:str) -> User | None:
+    async def get_user_by_email(self, *, email: str) -> User | None:
         result = await self._db.execute(select(UserORM).where(UserORM.email == email))
         row = result.scalar_one_or_none()
         return _to_domain(row) if row else None
 
-    async def update_last_login(self, *,user_id:UUID) -> None:
+    async def update_last_login(self, *, user_id: UUID) -> None:
         row = await self._db.get(UserORM, user_id)
         if row:
             row.last_login_at = datetime.now(timezone.utc)

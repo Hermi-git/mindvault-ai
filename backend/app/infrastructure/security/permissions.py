@@ -13,7 +13,9 @@ def requires_role(*allowed_roles: str) -> Callable:
     def dependency(claims: dict = Depends(get_current_claims)) -> dict:
         role = str(claims.get("role", "")).lower()
         if role not in allowed:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+            )
         return claims
 
     return dependency

@@ -5,7 +5,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.outbound.db.sqlalchemy_models import OrganizationMembershipORM, OrganizationORM
+from app.adapters.outbound.db.sqlalchemy_models import (
+    OrganizationMembershipORM,
+    OrganizationORM,
+)
 from app.domain.entities.organization_membership import OrganizationMembership
 from app.domain.ports.outbound.membership_repository import MembershipRepository
 from app.domain.value_objects.membership_status import MembershipStatus
@@ -64,7 +67,9 @@ class MembershipRepositoryImpl(MembershipRepository):
     ) -> OrganizationMembership | None:
         result = await self._db.execute(
             select(OrganizationMembershipORM)
-            .join(OrganizationORM, OrganizationORM.id == OrganizationMembershipORM.org_id)
+            .join(
+                OrganizationORM, OrganizationORM.id == OrganizationMembershipORM.org_id
+            )
             .where(
                 OrganizationMembershipORM.user_id == user_id,
                 OrganizationMembershipORM.status == MembershipStatus.ACTIVE.value,
@@ -74,7 +79,9 @@ class MembershipRepositoryImpl(MembershipRepository):
         row = result.scalar_one_or_none()
         return _to_domain(row) if row else None
 
-    async def list_user_memberships(self, *, user_id: UUID) -> list[OrganizationMembership]:
+    async def list_user_memberships(
+        self, *, user_id: UUID
+    ) -> list[OrganizationMembership]:
         result = await self._db.execute(
             select(OrganizationMembershipORM).where(
                 OrganizationMembershipORM.user_id == user_id,

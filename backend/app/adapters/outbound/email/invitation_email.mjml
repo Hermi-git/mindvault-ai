@@ -1,0 +1,119 @@
+<mjml>
+	<mj-head>
+		<mj-title>Invitation to join {{ org_name }}</mj-title>
+		<mj-preview>You're invited to join {{ org_name }} on MindVault AI.</mj-preview>
+		<mj-attributes>
+			<mj-all font-family="Manrope, Arial, sans-serif" />
+			<mj-text color="#1f2937" font-size="16px" line-height="26px" />
+			<mj-button background-color="#0f766e" color="#ffffff" border-radius="12px" font-size="16px" font-weight="700" inner-padding="14px 28px" />
+		</mj-attributes>
+		<mj-style>
+			.hero-band {
+				background: linear-gradient(120deg, #0f766e 0%, #0ea5a4 55%, #22c55e 100%);
+			}
+			.card {
+				border: 1px solid #e5e7eb;
+				border-radius: 20px;
+				box-shadow: 0 18px 35px rgba(15, 23, 42, 0.12);
+			}
+			.chip {
+				display: inline-block;
+				background: #ecfeff;
+				color: #0f766e;
+				border-radius: 999px;
+				padding: 6px 12px;
+				font-size: 12px;
+				letter-spacing: 1.2px;
+				text-transform: uppercase;
+			}
+			.subtle {
+				color: #6b7280;
+			}
+			.link {
+				color: #0f766e;
+				text-decoration: none;
+			}
+		</mj-style>
+	</mj-head>
+
+	<mj-body background-color="#f3f4f6">
+		<mj-section padding="28px 18px 0" css-class="hero-band">
+			<mj-column>
+				<mj-text align="center" padding="0 0 10px">
+					<span class="chip">MindVault AI</span>
+				</mj-text>
+				<mj-text align="center" color="#ffffff" font-size="32px" font-weight="800" line-height="40px" padding="0 0 8px">
+					Welcome to your new workspace
+				</mj-text>
+				<mj-text align="center" color="#e0f2f1" font-size="16px" padding="0 18px 22px">
+					{{ org_name }} is ready for you. Join the team and start collaborating today.
+				</mj-text>
+			</mj-column>
+		</mj-section>
+
+		<mj-section padding="0 18px">
+			<mj-column>
+				<mj-wrapper css-class="card" background-color="#ffffff" padding="0">
+					<mj-section background-color="#ffffff" padding="28px 26px 8px">
+						<mj-column>
+							<mj-text font-size="18px" font-weight="700" color="#0f172a" padding="0 0 12px">
+								Hello,
+							</mj-text>
+							<mj-text padding="0 0 12px">
+								You have been invited to join <strong>{{ org_name }}</strong> as a <strong>{{ role }}</strong>.
+							</mj-text>
+							<mj-text padding="0 0 16px">
+								Accept the invitation to finish onboarding and unlock your workspace.
+							</mj-text>
+
+							{% if expires_in_hours is defined and expires_in_hours %}
+							<mj-text padding="0 0 18px" color="#0f766e" font-weight="600">
+								This invitation expires in {{ expires_in_hours }} hours.
+							</mj-text>
+							{% endif %}
+
+							<mj-button href="{{ invite_url }}" align="left">
+								Accept invitation
+							</mj-button>
+
+							<mj-text padding="18px 0 6px" font-size="14px" css-class="subtle">
+								If the button does not work, copy and paste this link into your browser:
+							</mj-text>
+							<mj-text padding="0 0 6px" font-size="14px" css-class="link" word-break="break-all">
+								{{ invite_url }}
+							</mj-text>
+						</mj-column>
+					</mj-section>
+
+					<mj-section background-color="#f9fafb" padding="20px 26px 22px">
+						<mj-column>
+							<mj-text padding="0 0 10px" font-size="15px" font-weight="700" color="#0f172a">
+								What happens next
+							</mj-text>
+							<mj-text padding="0 0 6px" font-size="14px" color="#475569">
+								1. Open the invitation link.
+							</mj-text>
+							<mj-text padding="0 0 6px" font-size="14px" color="#475569">
+								2. Sign in or create your account.
+							</mj-text>
+							<mj-text padding="0" font-size="14px" color="#475569">
+								3. Access the organization workspace and start working.
+							</mj-text>
+						</mj-column>
+					</mj-section>
+				</mj-wrapper>
+			</mj-column>
+		</mj-section>
+
+		<mj-section padding="16px 20px 30px">
+			<mj-column>
+				<mj-text align="center" font-size="13px" color="#9ca3af" padding="0 0 6px">
+					Need help? Reply to this email or contact your admin.
+				</mj-text>
+				<mj-text align="center" font-size="12px" color="#9ca3af" padding="0">
+					Powered by MindVault AI
+				</mj-text>
+			</mj-column>
+		</mj-section>
+	</mj-body>
+</mjml>

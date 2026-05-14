@@ -7,7 +7,7 @@ from app.domain.ports.outbound.password_hasher import PasswordHasher
 
 class BcryptPasswordHasher(PasswordHasher):
     def __init__(self) -> None:
-        self._ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        self._ctx = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
     def hash_password(self, *, plain_password: str) -> str:
         return self._ctx.hash(plain_password)

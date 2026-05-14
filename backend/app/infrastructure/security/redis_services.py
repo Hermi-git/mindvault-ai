@@ -12,7 +12,15 @@ from redis.asyncio import Redis
 
 
 class ThrottleService:
-    def __init__(self, redis: Redis, *, soft_limit: int, hard_limit: int, soft_ttl: int, hard_ttl: int) -> None:
+    def __init__(
+        self,
+        redis: Redis,
+        *,
+        soft_limit: int,
+        hard_limit: int,
+        soft_ttl: int,
+        hard_ttl: int,
+    ) -> None:
         self._redis = redis
         self._soft_limit = soft_limit
         self._hard_limit = hard_limit
@@ -26,10 +34,14 @@ class ThrottleService:
             await self._redis.expire(key, self._hard_ttl)
         return int(value)
 
-    async def register_login_failure(self, *, ip: str, username: str) -> dict[str, int | str]:
+    async def register_login_failure(
+        self, *, ip: str, username: str
+    ) -> dict[str, int | str]:
         ip_key = f"auth:fail:ip:{ip}"
         user_key = f"auth:fail:user:{username.lower()}"
-        ip_count, user_count = await self._increment(ip_key), await self._increment(user_key)
+        ip_count, user_count = await self._increment(ip_key), await self._increment(
+            user_key
+        )
         severity = "NONE"
         lock_seconds = 0
         count = max(ip_count, user_count)
@@ -42,7 +54,9 @@ class ThrottleService:
         return {"severity": severity, "count": count, "lock_seconds": lock_seconds}
 
     async def clear_login_failures(self, *, ip: str, username: str) -> None:
-        await self._redis.delete(f"auth:fail:ip:{ip}", f"auth:fail:user:{username.lower()}")
+        await self._redis.delete(
+            f"auth:fail:ip:{ip}", f"auth:fail:user:{username.lower()}"
+        )
 
 
 class TokenService:
@@ -61,7 +75,9 @@ class TokenService:
         self._issuer = issuer
         self._audience = audience
 
-    def _encode(self, *, claims: dict[str, Any], token_type: str, ttl_seconds: int) -> tuple[str, str]:
+    def _encode(
+        self, *, claims: dict[str, Any], token_type: str, ttl_seconds: int
+    ) -> tuple[str, str]:
         now = datetime.now(timezone.utc)
         jti = uuid4().hex
         payload = {
@@ -75,7 +91,9 @@ class TokenService:
             "exp": now + timedelta(seconds=ttl_seconds),
         }
         key = self._keys[self._active_kid]
-        token = jwt.encode(payload, key, algorithm="HS256", headers={"kid": self._active_kid})
+        token = jwt.encode(
+            payload, key, algorithm="HS256", headers={"kid": self._active_kid}
+        )
         return token, jti
 
     def decode(self, token: str) -> dict[str, Any]:
@@ -89,17 +107,29 @@ class TokenService:
             algorithms=["HS256"],
             audience=self._audience,
             issuer=self._issuer,
-            options={"require": ["exp", "iat", "nbf", "iss", "aud", "sub", "jti", "type"]},
+            options={
+                "require": ["exp", "iat", "nbf", "iss", "aud", "sub", "jti", "type"]
+            },
         )
 
     async def issue_access(self, *, claims: dict[str, Any], ttl_seconds: int) -> str:
-        token, _ = self._encode(claims=claims, token_type="access", ttl_seconds=ttl_seconds)
+        token, _ = self._encode(
+            claims=claims, token_type="access", ttl_seconds=ttl_seconds
+        )
         return token
 
-    async def issue_refresh(self, *, claims: dict[str, Any], ttl_seconds: int, family_id: str | None = None) -> tuple[str, str, str]:
-        token, jti = self._encode(claims=claims, token_type="refresh", ttl_seconds=ttl_seconds)
+    async def issue_refresh(
+        self, *, claims: dict[str, Any], ttl_seconds: int, family_id: str | None = None
+    ) -> tuple[str, str, str]:
+        token, jti = self._encode(
+            claims=claims, token_type="refresh", ttl_seconds=ttl_seconds
+        )
         family = family_id or uuid4().hex
-        await self._redis.set(f"rt:active:{jti}", json.dumps({"sub": claims["sub"], "family": family}), ex=ttl_seconds)
+        await self._redis.set(
+            f"rt:active:{jti}",
+            json.dumps({"sub": claims["sub"], "family": family}),
+            ex=ttl_seconds,
+        )
         return token, jti, family
 
     async def revoke_access(self, *, jti: str, ttl_seconds: int) -> None:
@@ -132,11 +162,17 @@ class TokenService:
         await self._redis.delete(active_key)
         claims = {"sub": user_id, "org_id": org_id, "role": role}
         access = await self.issue_access(claims=claims, ttl_seconds=access_ttl)
-        refresh, _, family = await self.issue_refresh(claims=claims, ttl_seconds=refresh_ttl, family_id=payload["family"])
+        refresh, _, family = await self.issue_refresh(
+            claims=claims, ttl_seconds=refresh_ttl, family_id=payload["family"]
+        )
         return {"access_token": access, "refresh_token": refresh, "family_id": family}
 
     async def revoke_all_for_user(self, *, user_id: str) -> None:
-        await self._redis.set(f"user:sessions:revoked_after:{user_id}", int(datetime.now(timezone.utc).timestamp()), ex=604800)
+        await self._redis.set(
+            f"user:sessions:revoked_after:{user_id}",
+            int(datetime.now(timezone.utc).timestamp()),
+            ex=604800,
+        )
 
     async def is_user_globally_revoked(self, *, user_id: str, iat: int) -> bool:
         cut = await self._redis.get(f"user:sessions:revoked_after:{user_id}")
@@ -144,27 +180,47 @@ class TokenService:
 
 
 class InvitationService:
+    """Invite token binds to persisted row id: issuer|invite_id|org_id|email|role|exp|sig."""
+
     def __init__(self, *, secret: str, issuer: str) -> None:
         self._secret = secret.encode("utf-8")
         self._issuer = issuer
 
-    def issue(self, *, org_id: str, email: str, role: str, expires_in_seconds: int) -> str:
-        exp = int((datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)).timestamp())
-        payload = f"{self._issuer}|{org_id}|{email.lower()}|{role}|{exp}"
-        sig = hmac.new(self._secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        return f"{payload}|{sig}"
+    def issue(
+        self,
+        *,
+        invite_id: str,
+        org_id: str,
+        email: str,
+        role: str,
+        expires_in_seconds: int,
+    ) -> str:
+        exp = int(
+            (
+                datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+            ).timestamp()
+        )
+        normalized_email = email.strip().lower()
+        normalized_role = role.strip().lower()
+        blob = f"{self._issuer}|{invite_id}|{org_id}|{normalized_email}|{normalized_role}|{exp}"
+        sig = hmac.new(self._secret, blob.encode("utf-8"), hashlib.sha256).hexdigest()
+        return f"{blob}|{sig}"
 
     def verify(self, token: str) -> dict[str, str]:
-        try:
-            issuer, org_id, email, role, exp_str, sig = token.split("|", 5)
-        except ValueError as exc:
-            raise ValueError("Malformed invitation token") from exc
-        payload = f"{issuer}|{org_id}|{email}|{role}|{exp_str}"
-        expected = hmac.new(self._secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, sig):
+        if "|" not in token:
+            raise ValueError("Malformed invitation token")
+        signed_blob, sig = token.rsplit("|", 1)
+        expected_sig = hmac.new(
+            self._secret, signed_blob.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected_sig, sig):
             raise ValueError("Invalid invitation signature")
+        parts = signed_blob.split("|")
+        if len(parts) != 6:
+            raise ValueError("Malformed invitation token")
+        issuer, invite_id, org_id, email, role, exp_str = parts
         if issuer != self._issuer:
             raise ValueError("Invitation issuer mismatch")
         if int(exp_str) < int(datetime.now(timezone.utc).timestamp()):
             raise ValueError("Invitation expired")
-        return {"org_id": org_id, "email": email, "role": role}
+        return {"invite_id": invite_id, "org_id": org_id, "email": email, "role": role}

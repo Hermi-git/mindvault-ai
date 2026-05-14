@@ -1,4 +1,24 @@
 services:
+  celery-worker:
+    env_file:
+      - .env
+    image: python:3.11-slim
+    container_name: mindvault-celery-worker
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      bash -lc "apt-get update &&
+      apt-get install -y --no-install-recommends nodejs npm &&
+      npm install -g mjml &&
+      pip install --no-cache-dir -e . &&
+      id -u appuser >/dev/null 2>&1 || useradd -u 1000 -m appuser &&
+      su -p -s /bin/bash -c 'celery -A app.infrastructure.celery_app worker --loglevel=info -Q default,email' appuser"
+    ports: []
+    depends_on:
+      - redis
+      - postgres
+
   api:
     env_file:
       - .env

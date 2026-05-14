@@ -2,8 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any
 from uuid import UUID
+
+
+class DocumentStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
 
 
 @dataclass(slots=True)
@@ -15,10 +23,10 @@ class Document:
     id: UUID
     org_id: UUID
     title: str
-    source_type: str  # pdf | markdown | text | url
+    source_type: str
     storage_url: str
     checksum: str | None = None
-    status: str = "PENDING"  # PENDING | PROCESSING | READY | FAILED
+    status: DocumentStatus = DocumentStatus.PENDING
     metadata: dict[str, Any] = field(default_factory=dict)
     chunk_count: int = 0
     token_count: int = 0

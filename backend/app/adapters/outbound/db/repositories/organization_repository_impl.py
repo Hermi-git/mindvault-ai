@@ -20,10 +20,12 @@ def _to_domain(model: OrganizationORM) -> Organization:
         updated_at=model.updated_at,
     )
 
+
 class OrganizationRepositoryImpl(OrganizationRepository):
-    def __init__(self, *, db:AsyncSession) -> None:
+    def __init__(self, *, db: AsyncSession) -> None:
         self._db = db
-    async def create_org(self, *,org:Organization) -> Organization:
+
+    async def create_org(self, *, org: Organization) -> Organization:
         row = OrganizationORM(
             id=org.id,
             name=org.name,
@@ -35,15 +37,19 @@ class OrganizationRepositoryImpl(OrganizationRepository):
         await self._db.flush()
         return _to_domain(row)
 
-    async def get_org_by_id(self, *,org_id:UUID) -> Organization | None:
-        row = await self._db.get(OrganizationORM,org_id)
+    async def get_org_by_id(self, *, org_id: UUID) -> Organization | None:
+        row = await self._db.get(OrganizationORM, org_id)
         return _to_domain(row) if row else None
 
-    async def get_org_by_slug(self, *,slug:str) -> Organization | None:
-        result = await self._db.execute(select(OrganizationORM).where(OrganizationORM.slug == slug))
+    async def get_org_by_slug(self, *, slug: str) -> Organization | None:
+        result = await self._db.execute(
+            select(OrganizationORM).where(OrganizationORM.slug == slug)
+        )
         row = result.scalar_one_or_none()
         return _to_domain(row) if row else None
 
-    async def exists_slug(self, *,slug:str) -> bool:
-        result = await self._db.execute(select(OrganizationORM.id).where(OrganizationORM.slug == slug))
+    async def exists_slug(self, *, slug: str) -> bool:
+        result = await self._db.execute(
+            select(OrganizationORM.id).where(OrganizationORM.slug == slug)
+        )
         return result.scalar_one_or_none() is not None
