@@ -107,13 +107,13 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ MindVault deployment successful",
+              "text": "MindVault deployment successful",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Deployment Success* 🚀\nEnvironment: ${{ github.event.inputs.environment || 'staging' }}\nCommit: ${{ github.sha }}\nBranch: ${{ github.ref }}"
+                    "text": "*Deployment Success* \nEnvironment: ${{ github.event.inputs.environment || 'staging' }}\nCommit: ${{ github.sha }}\nBranch: ${{ github.ref }}"
                   }
                 }
               ]
@@ -127,13 +127,13 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ MindVault deployment failed",
+              "text": "MindVault deployment failed",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Deployment Failed* ❌\nEnvironment: ${{ github.event.inputs.environment || 'staging' }}\nCommit: ${{ github.sha }}"
+                    "text": "*Deployment Failed* \nEnvironment: ${{ github.event.inputs.environment || 'staging' }}\nCommit: ${{ github.sha }}"
                   }
                 }
               ]
