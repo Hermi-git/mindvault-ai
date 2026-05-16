@@ -2,8 +2,10 @@ import { useAuthStore } from '@/stores/authStore';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authService, LoginRequest, RegisterRequest } from '@/services/api';
-import { LoginSchema, RegisterSchema } from '@/lib/validation-schemas';
-import type { LoginInput, RegisterInput } from '@/lib/validation-schemas';
+import { loginSchema } from '@/lib/validation/login-schema';
+import { registerSchema } from '@/lib/validation/register-schema';
+import type { LoginInput } from '@/lib/validation/login-schema';
+import type { RegisterInput } from '@/lib/validation/register-schema';
 
 /**
  * useAuth Hook

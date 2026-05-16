@@ -5,11 +5,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth, useRegister } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
-import { RegisterSchema, type RegisterInput } from '@/lib/validation-schemas';
+import { registerSchema, type RegisterInput } from '@/lib/validation/register-schema';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
-import { getByteLength } from '@/lib/password-utils';
 import { ErrorMessage } from '@/components/shared/ErrorMessage';
 
 export function RegisterForm() {
@@ -19,8 +18,6 @@ export function RegisterForm() {
   const clearError = useAuthStore((state) => state.setError);  // Get function directly
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordBytes, setPasswordBytes] = useState(0);
-  const [confirmPasswordBytes, setConfirmPasswordBytes] = useState(0);
   const [dismissedError, setDismissedError] = useState(false);
   const {
     register,
@@ -28,7 +25,7 @@ export function RegisterForm() {
     formState: { errors },
     watch,
   } = useForm<RegisterInput>({
-    resolver: zodResolver(RegisterSchema),
+    resolver: zodResolver(registerSchema),
   });
 
   const onSubmit = (data: RegisterInput) => {
@@ -39,8 +36,6 @@ export function RegisterForm() {
   };
 
   const password = watch('password');
-  const isPasswordTooLong = passwordBytes > 72;
-  const isConfirmPasswordTooLong = confirmPasswordBytes > 72;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -115,23 +110,14 @@ export function RegisterForm() {
 
       {/* Password Field */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor="password" className="block text-sm font-medium text-slate-300">
-            Password
-          </label>
-          <span className={cn(
-            'text-xs',
-            passwordBytes > 72 ? 'text-red-400' : 'text-slate-500'
-          )}>
-            {passwordBytes}/72 bytes
-          </span>
-        </div>
+        <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+          Password
+        </label>
         <div className="relative">
           <input
             {...register('password')}
             type={showPassword ? 'text' : 'password'}
             placeholder="••••••••"
-            onChange={(e) => setPasswordBytes(getByteLength(e.target.value))}
             className={cn(
               'w-full px-4 py-2 rounded-lg',
               'bg-slate-900/50 border border-slate-700/50',
@@ -139,8 +125,7 @@ export function RegisterForm() {
               'focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50',
               'transition-colors duration-200',
               'pr-12',
-              errors.password && 'border-red-500/50',
-              passwordBytes > 72 && 'border-red-500/50'
+              errors.password && 'border-red-500/50'
             )}
           />
           <button
@@ -158,23 +143,14 @@ export function RegisterForm() {
 
       {/* Confirm Password Field */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300">
-            Confirm Password
-          </label>
-          <span className={cn(
-            'text-xs',
-            confirmPasswordBytes > 72 ? 'text-red-400' : 'text-slate-500'
-          )}>
-            {confirmPasswordBytes}/72 bytes
-          </span>
-        </div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+          Confirm Password
+        </label>
         <div className="relative">
           <input
             {...register('confirmPassword')}
             type={showConfirmPassword ? 'text' : 'password'}
             placeholder="••••••••"
-            onChange={(e) => setConfirmPasswordBytes(getByteLength(e.target.value))}
             className={cn(
               'w-full px-4 py-2 rounded-lg',
               'bg-slate-900/50 border border-slate-700/50',
@@ -182,8 +158,7 @@ export function RegisterForm() {
               'focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50',
               'transition-colors duration-200',
               'pr-12',
-              errors.confirmPassword && 'border-red-500/50',
-              confirmPasswordBytes > 72 && 'border-red-500/50'
+              errors.confirmPassword && 'border-red-500/50'
             )}
           />
           <button
@@ -200,7 +175,6 @@ export function RegisterForm() {
       </div>
 
       {/* Error Message */}
-      {/* Error Message */}
       {error && !dismissedError && (
         <ErrorMessage
           message={error}
@@ -213,18 +187,10 @@ export function RegisterForm() {
         />
       )}
 
-      {(isPasswordTooLong || isConfirmPasswordTooLong) && (
-        <ErrorMessage
-          message="One or more passwords exceed the 72-byte limit. Please use shorter passwords. (Note: some special characters count as multiple bytes)"
-          type="warning"
-          dismissible={false}
-        />
-      )}
-
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isPending || isPasswordTooLong || isConfirmPasswordTooLong}
+        disabled={isPending}
         className={cn(
           'w-full px-4 py-2 rounded-lg font-semibold',
           'bg-gradient-to-r from-indigo-600 to-cyan-400',
