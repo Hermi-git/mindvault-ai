@@ -1,10 +1,3 @@
-"""Pure-domain chunking policy.
-
-Splits a long text into overlapping windows suitable for embeddings/retrieval.
-The policy is intentionally deterministic and stateless so it can be tested
-and reused from both API code and Celery workers.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,11 +19,6 @@ class ChunkingConfig:
 
 
 def chunk_text(text: str, *, config: ChunkingConfig) -> list[str]:
-    """Return non-empty character-window chunks of ``text``.
-
-    The algorithm prefers paragraph and sentence boundaries near each window
-    end so chunks are not cut mid-sentence when possible.
-    """
     normalized = (text or "").strip()
     if not normalized:
         return []
@@ -57,7 +45,6 @@ def chunk_text(text: str, *, config: ChunkingConfig) -> list[str]:
 
 
 def _find_safe_break(window: str) -> int:
-    """Find the latest natural boundary in ``window`` (paragraph > newline > sentence)."""
     paragraph = window.rfind("\n\n")
     if paragraph > len(window) * 0.5:
         return paragraph + 2
@@ -72,7 +59,6 @@ def _find_safe_break(window: str) -> int:
 
 
 def estimate_token_count(text: str) -> int:
-    """Cheap, library-free token estimate (~4 chars/token heuristic)."""
     if not text:
         return 0
     return max(1, (len(text) + 3) // 4)

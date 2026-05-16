@@ -73,6 +73,10 @@ class Settings:
     pinecone_api_key: str = os.getenv("PINECONE_API_KEY", "")
     pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME", "mindvault")
 
+    # LLM (OpenAI)
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
     @property
     def document_allowed_source_types(self) -> set[str]:
         return {
