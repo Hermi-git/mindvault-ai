@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
-import { ArrowRight, Shield, Zap, Brain } from 'lucide-react';
+import { ArrowRight, Lock, Zap, FileText } from 'lucide-react';
 
 export function Hero() {
   const containerVariants = {
@@ -11,8 +11,8 @@ export function Hero() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.3,
+        staggerChildren: 0.12,
+        delayChildren: 0.2,
         duration: 0.5,
       },
     },
@@ -80,50 +80,50 @@ export function Hero() {
           variants={itemVariants}
           className="flex justify-center"
         >
-          <div className={cn(
-            'inline-flex items-center gap-2 px-4 py-2 rounded-full',
+          <a href="#demo" className={cn(
+            'group inline-flex items-center gap-2 px-4 py-2 rounded-full',
             'bg-white/5 border border-slate-700/50',
-            'backdrop-blur-sm text-sm text-slate-300'
+            'backdrop-blur-sm text-sm text-slate-300',
+            'hover:bg-white/10 hover:border-cyan-400/50',
+            'transition-all duration-300'
           )}>
             <motion.span
               animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2.5, repeat: Infinity }}
               className="inline-block w-2 h-2 bg-cyan-400 rounded-full"
             />
-            Powered by AI Intelligence
-          </div>
+            <span>See it in action</span>
+            <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+          </a>
         </motion.div>
 
         {/* Main Headline */}
         <motion.div variants={itemVariants} className="space-y-4">
           <h1 className={cn(
-            'text-5xl md:text-7xl font-bold leading-tight',
+            'text-5xl md:text-6xl lg:text-7xl font-bold leading-tight',
             'bg-linear-to-r from-slate-50 via-indigo-300 to-cyan-400',
             'bg-clip-text text-transparent',
             'tracking-tight'
           )}>
-            Your Team's Collective Intelligence,
-            <br />
-            <span className="inline-block">Powered by AI.</span>
+            Your Knowledge Base Answers Questions
           </h1>
         </motion.div>
 
-        {/* Sub-headline */}
+        {/* Sub-headline - More Human */}
         <motion.p
           variants={itemVariants}
           className={cn(
             'text-lg md:text-xl max-w-2xl mx-auto',
-            'text-slate-400 leading-relaxed'
+            'text-slate-300 leading-relaxed'
           )}
         >
-          Securely upload your proprietary documents and get instant, grounded answers.
-          Built for teams that value intelligence, security, and speed.
+          Stop digging through documents. Upload your files and ask questions in natural language. Get answers grounded in your actual content, with instant citations.
         </motion.p>
 
         {/* CTA Buttons */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row gap-4 justify-center pt-8"
+          className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
         >
           <Link href="/register">
             <motion.button
@@ -138,24 +138,40 @@ export function Hero() {
                 'flex items-center gap-2 justify-center'
               )}
             >
-              Get Started for Free
+              Start Free Trial
+              <ArrowRight size={20} />
+            </motion.button>
+          </Link>
+          <Link href="#demo">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                'px-8 py-4 rounded-lg font-semibold',
+                'bg-white/10 border border-slate-700/50 hover:border-cyan-400/50',
+                'text-slate-50 backdrop-blur-sm',
+                'hover:bg-white/15 transition-all duration-300',
+                'flex items-center gap-2 justify-center'
+              )}
+            >
+              Watch Demo
               <ArrowRight size={20} />
             </motion.button>
           </Link>
         </motion.div>
 
-        {/* Trust Indicators */}
+        {/* Trust Indicators - More Concrete */}
         <motion.div
           variants={itemVariants}
           className={cn(
-            'grid grid-cols-1 md:grid-cols-3 gap-6 pt-12',
+            'grid grid-cols-1 md:grid-cols-3 gap-6 pt-8',
             'max-w-2xl mx-auto'
           )}
         >
           {[
-            { icon: Brain, label: 'AI-Powered', desc: 'GPT-4o Intelligence' },
-            { icon: Shield, label: 'Enterprise Secure', desc: 'End-to-End Encryption' },
-            { icon: Zap, label: 'Lightning Fast', desc: '<500ms Response Time' },
+            { icon: Zap, label: 'Lightning Fast', desc: 'Answers in seconds, not hours' },
+            { icon: Lock, label: 'Your Data Stays Yours', desc: 'End-to-end encrypted' },
+            { icon: FileText, label: 'Always Cited', desc: 'Every answer links to sources' },
           ].map((item, i) => (
             <motion.div
               key={item.label}
@@ -183,13 +199,13 @@ export function Hero() {
       {/* Scroll Indicator */}
       <motion.div
         animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
+        transition={{ duration: 2.5, repeat: Infinity }}
         className={cn(
           'absolute bottom-8 left-1/2 -translate-x-1/2',
           'text-slate-400 text-sm'
         )}
       >
-        <p>Scroll to explore</p>
+        <p>Explore features</p>
         <div className="flex justify-center mt-2">
           <motion.div className="w-1 h-6 rounded-full bg-linear-to-b from-cyan-400 to-transparent" />
         </div>
