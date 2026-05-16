@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from uuid import uuid4
+from typing import Any
+import uuid
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -240,3 +242,35 @@ class DocumentChunkORM(Base):
         UniqueConstraint("document_id", "chunk_index", name="uq_chunks_doc_index"),
         Index("ix_chunks_org_document", "org_id", "document_id"),
     )
+
+class ChatSessionORM(Base):
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, nullable=True, default=dict)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    messages: Mapped[list[ChatMessageORM]] = relationship(back_populates="session", cascade="all, delete-orphan")
+
+
+class ChatMessageORM(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column("citations", JSONB, default=list)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    model_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    token_count: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    session: Mapped[ChatSessionORM] = relationship(back_populates="messages")
