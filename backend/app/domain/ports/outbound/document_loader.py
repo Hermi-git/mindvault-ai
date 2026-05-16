@@ -1,9 +1,3 @@
-"""Outbound port for turning raw uploaded bytes into plain text.
-
-A ``DocumentLoader`` understands one or more ``source_type`` values
-(e.g. ``"text"``, ``"markdown"``). The ingestion pipeline asks a registry to
-find a loader that ``supports(source_type)`` and uses its ``load_text``.
-"""
 
 from __future__ import annotations
 

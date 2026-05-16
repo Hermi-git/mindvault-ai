@@ -1,13 +1,4 @@
-"""Outbound port for persisting/reading document chunks.
-
-Two surfaces:
-  * ``ChunkRepository`` (async) — used by API request handlers.
-  * ``SyncChunkRepository`` (sync) — used by Celery workers via psycopg2 session
-    (avoids asyncpg loop-binding issues).
-"""
-
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from uuid import UUID
 

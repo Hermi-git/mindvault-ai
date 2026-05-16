@@ -1,13 +1,4 @@
-"""Outbound port for binary object storage (uploads, downloads).
-
-Implementations live under ``app.adapters.outbound.storage`` (e.g. local FS
-for dev, S3/Supabase for prod). Methods are **synchronous** so they can be
-called from both async (via ``asyncio.to_thread``) and sync (Celery worker)
-contexts without coupling to any IO loop.
-"""
-
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 
 
