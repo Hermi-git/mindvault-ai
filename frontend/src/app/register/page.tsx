@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RegisterForm } from '@/components/auth';
+import { RegisterForm } from '@/components/features/auth';
 import { useAuth } from '@/hooks';
 import { cn } from '@/lib/utils';
 
