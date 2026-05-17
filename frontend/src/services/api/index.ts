@@ -13,13 +13,24 @@ export interface RegisterRequest {
   organization_name: string;
 }
 
-export interface AuthResponse {
+// Register response - doesn't include tokens
+export interface RegisterResponse {
   user_id: string;
-  email: string;
-  full_name: string;
+  default_org_id: string;
+}
+
+// Login response - includes tokens
+export interface TokenPairResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+// /auth/me response
+export interface MeResponse {
+  user_id: string;
   org_id: string;
   role: string;
-  created_at: string;
 }
 
 /**
@@ -27,26 +38,50 @@ export interface AuthResponse {
  * Handles all auth-related API calls
  */
 export const authService = {
+  /**
+   * Register a new user and organization
+   * Returns user_id and org_id (not tokens)
+   * User must login separately
+   */
+  register: (data: RegisterRequest) =>
+    apiClient.post<RegisterResponse>('/auth/register', data),
+
+  /**
+   * Login user and get tokens
+   * Returns access_token and refresh_token
+   */
   login: (data: LoginRequest) =>
-    apiClient.post<AuthResponse>('/auth/login', data),
+    apiClient.post<TokenPairResponse>('/auth/login', data),
 
-  register: (data: RegisterRequest) => {
-    // Only send fields the backend expects (exclude confirmPassword)
-    const { confirmPassword, ...payload } = data as any;
-    return apiClient.post<AuthResponse>('/auth/register', payload);
-  },
+  /**
+   * Get current user info from access token
+   * Returns: user_id, org_id, role
+   */
+  getMe: () =>
+    apiClient.get<MeResponse>('/auth/me'),
 
-  me: () =>
-    apiClient.get<AuthResponse>('/auth/me'),
-
+  /**
+   * Logout user (invalidates refresh token)
+   */
   logout: () =>
     apiClient.post('/auth/logout'),
 
-  refresh: (refreshToken?: string) =>
-    apiClient.post('/auth/refresh', refreshToken ? { refresh_token: refreshToken } : {}),
+  /**
+   * Refresh access token using refresh token
+   */
+  refresh: (refreshToken: string) =>
+    apiClient.post<TokenPairResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    }),
 
+  /**
+   * Switch active organization
+   */
   switchOrg: (targetOrgId: string) =>
-    apiClient.post('/auth/switch-org', { target_org_id: targetOrgId }),
+    apiClient.post<TokenPairResponse & { active_org_id: string }>(
+      '/auth/switch-org',
+      { target_org_id: targetOrgId }
+    ),
 };
 
 /**
