@@ -11,15 +11,9 @@ from app.domain.ports.outbound.llm_port import LLMPort
 from app.domain.ports.outbound.unit_of_work import UnitOfWork
 from app.domain.ports.outbound.vector_store import VectorStore
 
-logger = logging.getLogger(__name__)
+from app.infrastructure.prompts.loader import SYSTEM_PROMPT_TEMPLATE
 
-SYSTEM_PROMPT_TEMPLATE = (
-    "You are MindVault AI, a helpful assistant grounded in the user's knowledge base. "
-    "Use ONLY the context provided below to answer the user's question. "
-    "If the answer is not in the context, say 'I don't have that information in my knowledge base.' "
-    "Do not use your own training data to answer.\n\n"
-    "Context:\n{context}"
-)
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -57,6 +51,7 @@ class ChatService:
             {
                 "doc_id": m["metadata"]["document_id"],
                 "title": m["metadata"].get("title", ""),
+                "pages": m["metadata"].get("pages", []),
             }
             for m in context_matches
             if m.get("metadata")
