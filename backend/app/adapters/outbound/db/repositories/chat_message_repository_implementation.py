@@ -36,7 +36,9 @@ class ChatMessageRepositoryImplementation(ChatMessageRepository):
     async def list_messages(self, session_id: UUID) -> list[ChatMessage]:
         return await self._fetch_messages(session_id)
 
-    async def get_recent_by_session(self, session_id: UUID, limit: int = 10) -> list[ChatMessage]:
+    async def get_recent_by_session(
+        self, session_id: UUID, limit: int = 10
+    ) -> list[ChatMessage]:
         result = await self.db_session.execute(
             select(ChatMessageORM)
             .where(ChatMessageORM.session_id == session_id)

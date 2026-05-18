@@ -21,7 +21,9 @@ class ChatMessage:
     created_at: datetime | None = None
 
     @classmethod
-    def create_user_message(cls, session_id: UUID, org_id: UUID, user_id: UUID, content: str) -> ChatMessage:
+    def create_user_message(
+        cls, session_id: UUID, org_id: UUID, user_id: UUID, content: str
+    ) -> ChatMessage:
         return cls(
             id=uuid4(),
             session_id=session_id,

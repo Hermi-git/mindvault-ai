@@ -12,7 +12,7 @@ class ChatSession:
     org_id: UUID
     user_id: UUID
     title: str
-    metadata: dict[str, Any] = field(default_factory=dict) 
+    metadata: dict[str, Any] = field(default_factory=dict)
     last_message_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

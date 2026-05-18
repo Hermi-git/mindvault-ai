@@ -6,8 +6,7 @@ class VectorStore(ABC):
     @abstractmethod
     async def upsert(
         self, *, vectors: List[Dict[str, Any]], namespace: Optional[str] = None
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
     async def query_by_similarity(

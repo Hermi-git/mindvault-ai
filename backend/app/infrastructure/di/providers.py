@@ -147,6 +147,7 @@ def get_switch_org_service():
         refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
     )
 
+
 @lru_cache(maxsize=1)
 def get_object_storage() -> ObjectStorage:
     """Singleton local-disk storage; swap for S3/Supabase here when ready."""

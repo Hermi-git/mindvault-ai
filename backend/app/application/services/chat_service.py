@@ -71,7 +71,10 @@ class ChatService:
             await uow.commit()
 
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT_TEMPLATE.format(context=context_text)},
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT_TEMPLATE.format(context=context_text),
+            },
             *[{"role": m.role, "content": m.content} for m in history],
             {"role": "user", "content": user_query},
         ]

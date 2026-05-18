@@ -29,8 +29,10 @@ class ChatSessionRepositoryImplementation(ChatSessionRepository):
         )
         self.db_session.add(orm)
 
-    async def get_chat_session(self,session_id:UUID) -> ChatSession:
-        result = await self.db_session.execute(select(ChatSessionORM).where(ChatSessionORM.id == session_id))
+    async def get_chat_session(self, session_id: UUID) -> ChatSession:
+        result = await self.db_session.execute(
+            select(ChatSessionORM).where(ChatSessionORM.id == session_id)
+        )
         orm = result.scalar_one_or_none()
         if orm is None:
             raise NotFound(f"ChatSession {session_id} not found")
@@ -44,15 +46,15 @@ class ChatSessionRepositoryImplementation(ChatSessionRepository):
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
-    
+
     async def update_chat_session(self, chat_session: ChatSession) -> None:
         stmt = (
             update(ChatSessionORM)
             .where(ChatSessionORM.id == chat_session.id)
             .values(
-                title =  chat_session.title,
-                metadata_json = chat_session.metadata,
-                last_message_at = chat_session.last_message_at,
+                title=chat_session.title,
+                metadata_json=chat_session.metadata,
+                last_message_at=chat_session.last_message_at,
             )
         )
         await self.db_session.execute(stmt)

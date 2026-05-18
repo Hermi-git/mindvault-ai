@@ -11,5 +11,4 @@ class LLMPort(ABC):
         *,
         messages: list[dict[str, str]],
         temperature: float = 0.7,
-    ) -> AsyncGenerator[str, None]:
-        ...
+    ) -> AsyncGenerator[str, None]: ...

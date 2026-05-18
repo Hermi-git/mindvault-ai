@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import app.infrastructure.celery_app  
+import app.infrastructure.celery_app
 
 from fastapi import FastAPI
 
