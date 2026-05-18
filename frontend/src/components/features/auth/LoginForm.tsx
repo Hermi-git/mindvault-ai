@@ -5,11 +5,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth, useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
-import { LoginSchema, type LoginInput } from '@/lib/validation-schemas';
+import { loginSchema, type LoginInput } from '@/lib/validation/login-schema';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
-import { getByteLength } from '@/lib/password-utils';
 import { ErrorMessage } from '@/components/shared/ErrorMessage';
 
 export function LoginForm() {
@@ -18,14 +17,13 @@ export function LoginForm() {
   const { error } = useAuth();  // Use store error, not mutation error
   const clearError = useAuthStore((state) => state.setError);  // Get function directly
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordBytes, setPasswordBytes] = useState(0);
   const [dismissedError, setDismissedError] = useState(false);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginInput>({
-    resolver: zodResolver(LoginSchema),
+    resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = (data: LoginInput) => {
@@ -34,8 +32,6 @@ export function LoginForm() {
     setDismissedError(false);
     login(data);
   };
-
-  const isPasswordTooLong = passwordBytes > 72;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -64,23 +60,14 @@ export function LoginForm() {
 
       {/* Password Field */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor="password" className="block text-sm font-medium text-slate-300">
-            Password
-          </label>
-          <span className={cn(
-            'text-xs',
-            passwordBytes > 72 ? 'text-red-400' : 'text-slate-500'
-          )}>
-            {passwordBytes}/72 bytes
-          </span>
-        </div>
+        <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+          Password
+        </label>
         <div className="relative">
           <input
             {...register('password')}
             type={showPassword ? 'text' : 'password'}
             placeholder="••••••••"
-            onChange={(e) => setPasswordBytes(getByteLength(e.target.value))}
             className={cn(
               'w-full px-4 py-2 rounded-lg',
               'bg-slate-900/50 border border-slate-700/50',
@@ -88,8 +75,7 @@ export function LoginForm() {
               'focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50',
               'transition-colors duration-200',
               'pr-12',
-              errors.password && 'border-red-500/50',
-              passwordBytes > 72 && 'border-red-500/50'
+              errors.password && 'border-red-500/50'
             )}
           />
           <button
@@ -140,7 +126,7 @@ export function LoginForm() {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isPending || isPasswordTooLong}
+        disabled={isPending}
         className={cn(
           'w-full px-4 py-2 rounded-lg font-semibold',
           'bg-gradient-to-r from-indigo-600 to-cyan-400',
@@ -150,14 +136,6 @@ export function LoginForm() {
       >
         {isPending ? 'Signing in...' : 'Sign In'}
       </button>
-
-      {isPasswordTooLong && (
-        <ErrorMessage
-          message="Your password exceeds the 72-byte limit. Please use a shorter password. (Note: some special characters count as multiple bytes)"
-          type="warning"
-          dismissible={false}
-        />
-      )}
 
       {/* Sign Up Link */}
       <p className="text-center text-slate-400 text-sm mt-8">

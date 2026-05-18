@@ -69,23 +69,23 @@ export function Navbar() {
 
         {/* Sign In Button */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          <Link
-            href="/login"
-            className={cn(
-              'px-6 py-2.5 rounded-lg font-semibold',
-              'bg-white/10 hover:bg-white/20',
-              'border border-slate-700 hover:border-cyan-400/50',
-              'text-slate-50 transition-all duration-300',
-              'backdrop-blur-sm'
-            )}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
           >
-            Sign In
-          </Link>
-        </motion.div>
+            <Link
+              href="/login"
+              className={cn(
+                'px-6 py-2.5 rounded-lg font-semibold',
+                'bg-white/10 hover:bg-white/20',
+                'border border-slate-700 hover:border-cyan-400/50',
+                'text-slate-50 transition-all duration-300',
+                'backdrop-blur-sm'
+              )}
+            >
+              Sign In
+            </Link>
+          </motion.div>
       </div>
     </motion.nav>
   );
