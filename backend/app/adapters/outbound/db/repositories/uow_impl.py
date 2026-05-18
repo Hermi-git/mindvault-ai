@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adapters.outbound.db.repositories.chat_message_repository_implementation import (
+    ChatMessageRepositoryImplementation,
+)
+from app.adapters.outbound.db.repositories.chat_session_repository_implementation import (
+    ChatSessionRepositoryImplementation,
+)
 from app.adapters.outbound.db.repositories.membership_repository_impl import (
     MembershipRepositoryImpl,
 )
@@ -22,6 +28,8 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self.users = None
         self.organizations = None
         self.memberships = None
+        self.sessions = None
+        self.messages = None
 
     async def __aenter__(self) -> "SQLAlchemyUnitOfWork":
         self._session = self._session_factory()
@@ -29,6 +37,8 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self.users = UserRepositoryImpl(db=self._session)
         self.organizations = OrganizationRepositoryImpl(db=self._session)
         self.memberships = MembershipRepositoryImpl(db=self._session)
+        self.sessions = ChatSessionRepositoryImplementation(db_session=self._session)
+        self.messages = ChatMessageRepositoryImplementation(db_session=self._session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

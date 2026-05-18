@@ -58,3 +58,8 @@ class PatchMemberRequest(BaseModel):
     status: StrictStr | None = Field(
         default=None, pattern="^(ACTIVE|SUSPENDED|INVITED)$"
     )
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    message: StrictStr = Field(..., min_length=1, max_length=10000)

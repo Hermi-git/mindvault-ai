@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-# Load Celery app + shared_task registrations before routers import tasks (`.delay()`).
-import app.infrastructure.celery_app  # noqa: F401
+import app.infrastructure.celery_app
 
 from fastapi import FastAPI
 
-from app.adapters.inbound.api.v1 import routes_auth, routes_documents
+from app.adapters.inbound.api.v1 import routes_auth, routes_chat, routes_documents
 
 app = FastAPI(
     title="MindVault AI Backend",
@@ -18,6 +17,7 @@ app = FastAPI(
 
 app.include_router(routes_auth.router, prefix="/api/v1")
 app.include_router(routes_documents.router, prefix="/api/v1")
+app.include_router(routes_chat.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])

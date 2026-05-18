@@ -1,11 +1,3 @@
-"""SQLAlchemy adapters for the documents + chunks tables.
-
-Two implementations live here:
-  * ``DocumentRepositoryImpl`` — async (asyncpg), used by the API.
-  * ``SyncDocumentRepositoryImpl`` and ``SyncChunkRepositoryImpl`` — sync
-    (psycopg2), used by Celery workers via :func:`worker_session`.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -154,8 +146,6 @@ class DocumentRepositoryImpl(DocumentRepository):
 
 
 class SyncDocumentRepositoryImpl(SyncDocumentRepository):
-    """Sync repository used by Celery workers (psycopg2 session)."""
-
     def get_by_id(self, *, document_id: UUID) -> Document | None:
         with worker_session() as session:
             row = session.execute(

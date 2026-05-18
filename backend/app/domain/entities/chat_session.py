@@ -8,10 +8,6 @@ from uuid import UUID
 
 @dataclass(slots=True)
 class ChatSession:
-    """
-    Conversation container for one user within one organization.
-    """
-
     id: UUID
     org_id: UUID
     user_id: UUID

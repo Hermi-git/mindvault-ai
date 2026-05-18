@@ -18,11 +18,13 @@ from app.adapters.outbound.db.repositories.token_provider_impl import JwtTokenPr
 from app.adapters.outbound.db.repositories.uow_impl import SQLAlchemyUnitOfWork
 from app.adapters.outbound.db.session import SessionFactory
 from app.adapters.outbound.email.email_sender import NullEmailSender, SmtpEmailSender
+from app.adapters.outbound.llm.openai_provider import OpenAIAdapter
 from app.adapters.outbound.loaders.docx_loader import DocxDocumentLoader
 from app.adapters.outbound.loaders.pdf_loader import PDFDocumentLoader
 from app.adapters.outbound.loaders.text_loader import TextDocumentLoader
 from app.adapters.outbound.storage.local_storage import LocalObjectStorage
 from app.adapters.outbound.vector.pinecone_store import PineconeVectorStore
+from app.application.services.chat_service import ChatService
 from app.application.services.iam_service import IAMService
 from app.application.services.ingestion_service import IngestionService
 from app.application.use_cases.ingest_document import IngestDocumentService
@@ -146,11 +148,6 @@ def get_switch_org_service():
     )
 
 
-# ---------------------------------------------------------------------------
-# Document ingestion wiring
-# ---------------------------------------------------------------------------
-
-
 @lru_cache(maxsize=1)
 def get_object_storage() -> ObjectStorage:
     """Singleton local-disk storage; swap for S3/Supabase here when ready."""
@@ -185,11 +182,6 @@ def get_chunk_repository() -> ChunkRepository:
 
 
 def _enqueue_process_document(*, document_id: str) -> None:
-    """Send a Celery message to ingest and process the given document.
-
-    Imported lazily to avoid circular imports during ``celery_app`` bootstrap.
-    Uses the new ingestion task that handles parsing, chunking, embedding, and vector storage.
-    """
     from app.application.tasks.ingestion_tasks import ingest_document_task
 
     ingest_document_task.delay(document_id=document_id)
@@ -235,8 +227,25 @@ def get_ingestion_service() -> IngestionService:
     return IngestionService(
         storage=get_object_storage(),
         repository=get_document_repository(),
-        parser=None,  # Not used, IngestionService uses ParserFactory internally
+        parser=None,
         embedder=get_embedder(),
         vector_store=get_vector_store(),
+        uow_factory=get_uow_factory(),
+    )
+
+
+def get_llm() -> OpenAIAdapter:
+    """Get the LLM adapter (OpenAI)."""
+    return OpenAIAdapter(
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+    )
+
+
+def get_chat_service() -> ChatService:
+    return ChatService(
+        embedder=get_embedder(),
+        vector_store=get_vector_store(),
+        llm=get_llm(),
         uow_factory=get_uow_factory(),
     )
