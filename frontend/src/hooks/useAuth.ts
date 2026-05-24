@@ -18,7 +18,7 @@ function getErrorMessage(error: any): string {
 
   // Network error (no response from server)
   if (error.message === 'Network Error' || !error.response) {
-    return 'Cannot reach the server. Please make sure the backend is running at http://localhost:8000';
+    return 'Cannot reach the server!';
   }
 
   // Backend validation/business logic errors
@@ -113,11 +113,16 @@ export function useLogin() {
 
 /**
  * useRegister Hook
- * Handles user registration
- * After successful registration, user must login separately
+ * Handles user registration with enterprise-level auto-login
+ * After successful registration:
+ * 1. User account is created
+ * 2. Automatically login with the same credentials
+ * 3. Get tokens and store them
+ * 4. Redirect to dashboard (no manual login needed)
  */
 export function useRegister() {
   const router = useRouter();
+  const setTokens = useAuthStore((state) => state.setTokens);
   const setError = useAuthStore((state) => state.setError);
 
   return useMutation({
@@ -129,19 +134,31 @@ export function useRegister() {
       const { confirmPassword, ...payload } = validated as any;
 
       // Make register request
-      const response = await authService.register(
+      const registerResponse = await authService.register(
         payload as unknown as RegisterRequest
       );
 
-      return response.data;
+      // Step 1: Registration successful, now auto-login with same credentials
+      const loginResponse = await authService.login({
+        email: payload.email,
+        password: payload.password,
+      } as LoginRequest);
+
+      // Return both responses for onSuccess handler
+      return {
+        register: registerResponse.data,
+        login: loginResponse.data,
+      };
     },
     onSuccess: (data) => {
+      // Store tokens from login response (this auto-logs in the user)
+      setTokens(data.login.access_token, data.login.refresh_token);
+
       // Clear any previous errors
       setError(null);
 
-      // Redirect to login page
-      // User should login with the credentials they just registered with
-      router.push('/login');
+      // Redirect directly to dashboard (user is now logged in!)
+      router.push('/dashboard');
     },
     onError: (error: any) => {
       const message = getErrorMessage(error);
