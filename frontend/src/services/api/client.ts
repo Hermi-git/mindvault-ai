@@ -133,7 +133,7 @@ apiClient.interceptors.response.use(
     // CORS error handling
     if (isCorsError) {
       const corsError = new Error(
-        'Backend server is not accessible. Please ensure the API server is running at http://localhost:8000'
+        'Connection error. Please check your internet connection and try again.'
       );
       corsError.name = 'CORS_ERROR';
       return Promise.reject(corsError);
@@ -141,12 +141,12 @@ apiClient.interceptors.response.use(
 
     // 403 Forbidden
     if (error.response?.status === 403) {
-      console.error('Access forbidden:', error.response.data);
+      // Log only status, not full error details
     }
 
     // 500+ Server errors
     if (error.response?.status >= 500) {
-      console.error('Server error:', error.response.data);
+      // Log only status, not full error details
     }
 
     return Promise.reject(error);

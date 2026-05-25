@@ -32,12 +32,12 @@ export function ErrorMessage({
   return (
     <div className={cn('p-3 rounded-lg border', bgColor)}>
       <div className="flex items-start gap-3">
-        <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+        <AlertCircle size={18} className="mt-0.5 shrink-0" />
         <p className="text-sm flex-1">{humanizedMessage}</p>
         {dismissible && onDismiss && (
           <button
             onClick={onDismiss}
-            className="text-current hover:opacity-70 transition-opacity flex-shrink-0"
+            className="text-current hover:opacity-70 transition-opacity shrink-0"
           >
             <X size={16} />
           </button>
@@ -58,12 +58,12 @@ function sanitizeErrorMessage(message: string): string {
 
   const msg = message.toLowerCase();
 
-  // Password byte length error (multiple variations)
+  // Password length error (multiple variations)
   if (
     msg.includes('password') && 
-    (msg.includes('72 bytes') || msg.includes('longer than 72') || msg.includes('byte'))
+    (msg.includes('72') || msg.includes('too long') || msg.includes('byte'))
   ) {
-    return 'Your password is too long. Please use a password with 72 bytes or less. (Note: some special characters like emoji count as multiple bytes)';
+    return 'Your password is too long. Please use a shorter password (under 72 characters).';
   }
 
   // Email already exists
@@ -77,13 +77,28 @@ function sanitizeErrorMessage(message: string): string {
   }
 
   // Network/server errors
-  if (msg.includes('network') || msg.includes('failed to fetch')) {
-    return 'Connection error. Please check your internet and try again.';
+  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('cors') || msg.includes('timeout')) {
+    return 'Connection error. Please check your internet connection and try again.';
   }
 
   // Generic server error
-  if (msg.includes('500') || msg.includes('internal server')) {
-    return 'Something went wrong on our end. Please try again later.';
+  if (msg.includes('500') || msg.includes('internal server') || msg.includes('server error')) {
+    return 'Something went wrong. Please try again in a moment.';
+  }
+
+  // User/member already exists
+  if (msg.includes('already') && (msg.includes('member') || msg.includes('user'))) {
+    return 'This member has already been invited.';
+  }
+
+  // Organization not found
+  if (msg.includes('organization not found') || msg.includes('org') && msg.includes('not found')) {
+    return 'Organization not found. Please try again.';
+  }
+
+  // Permission denied
+  if (msg.includes('forbidden') || msg.includes('permission') || msg.includes('not authorized')) {
+    return 'You do not have permission to perform this action.';
   }
 
   // Default: return original message
