@@ -11,6 +11,8 @@ export interface AuthUser {
   user_id: string;
   org_id: string;
   role: 'owner' | 'admin' | 'member' | 'viewer';
+  full_name?: string;
+  email?: string;
 }
 
 /**
@@ -37,7 +39,7 @@ interface AuthState {
   isAuthenticated: boolean;
 
   // Actions
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string, refreshToken: string, fullName?: string) => void;
   clearTokens: () => void;
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -65,12 +67,23 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Set tokens and extract user info from access token
        */
-      setTokens: (accessToken: string, refreshToken: string) => {
+      setTokens: (accessToken: string, refreshToken: string, fullName?: string) => {
         // Save to localStorage
-        TokenStorage.setTokens(accessToken, refreshToken);
+        TokenStorage.setTokens(accessToken, refreshToken, fullName);
 
         // Extract user info from token
         const user = extractUserFromToken(accessToken);
+        
+        // Set full_name if provided
+        if (fullName && user) {
+          user.full_name = fullName;
+        } else if (user) {
+          // Get stored user name if not provided
+          const storedName = TokenStorage.getUserName();
+          if (storedName) {
+            user.full_name = storedName;
+          }
+        }
 
         set({
           accessToken,

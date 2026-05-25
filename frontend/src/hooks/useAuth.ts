@@ -67,8 +67,9 @@ export function useAuth() {
   const error = useAuthStore((state) => state.error);
   const logout = useAuthStore((state) => state.logout);
   const checkAuth = useAuthStore((state) => state.checkAuth);
+  const setTokens = useAuthStore((state) => state.setTokens);
 
-  return { user, isLoading, isAuthenticated, error, logout, checkAuth };
+  return { user, isLoading, isAuthenticated, error, logout, checkAuth, setTokens };
 }
 
 /**
@@ -148,11 +149,13 @@ export function useRegister() {
       return {
         register: registerResponse.data,
         login: loginResponse.data,
+        fullName: payload.full_name,
       };
     },
     onSuccess: (data) => {
       // Store tokens from login response (this auto-logs in the user)
-      setTokens(data.login.access_token, data.login.refresh_token);
+      // Also store full_name for dashboard display
+      setTokens(data.login.access_token, data.login.refresh_token, data.fullName);
 
       // Clear any previous errors
       setError(null);
