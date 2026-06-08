@@ -7,15 +7,28 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.application.dto.requests import ChatRequest
+from app.infrastructure.config import settings
 from app.infrastructure.di.container import Container
 from app.infrastructure.security.auth import get_current_claims
+from app.infrastructure.security.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 
-@router.post("/{session_id}/ask")
+@router.post(
+    "/{session_id}/ask",
+    dependencies=[
+        Depends(
+            rate_limit(
+                scope="chat",
+                limit=settings.chat_rate_limit_per_min,
+                window=settings.rate_limit_window_seconds,
+            )
+        )
+    ],
+)
 async def chat(
     session_id: UUID,
     payload: ChatRequest,
@@ -38,4 +51,8 @@ async def chat(
             logger.exception("Chat streaming failed")
             raise
 
-    return StreamingResponse(event_generator(), media_type="text/plain")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

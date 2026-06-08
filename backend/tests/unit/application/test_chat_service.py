@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,24 @@ import pytest
 from app.application.services.chat_service import ChatService
 from app.domain.value_objects.document import Document
 from tests.helpers.mocks import FakeUoW
+
+
+def _parse_sse(events: list[str]) -> tuple[str, list, bool]:
+    """Return (joined tokens, citations, done-seen) from SSE event strings."""
+    tokens: list[str] = []
+    citations: list = []
+    done = False
+    for raw in events:
+        payload = raw.removeprefix("data: ").strip()
+        if payload == "[DONE]":
+            done = True
+            continue
+        data = json.loads(payload)
+        if data["type"] == "token":
+            tokens.append(data["content"])
+        elif data["type"] == "citations":
+            citations = data["citations"]
+    return "".join(tokens), citations, done
 
 
 class FakeHybridSearch:
@@ -79,5 +98,35 @@ async def test_chat_service_streams_llm_tokens() -> None:
         user_query="What is MindVault?",
     ):
         chunks.append(part)
-    assert "".join(chunks) == "Hello world"
+    text, citations, done = _parse_sse(chunks)
+    assert text == "Hello world"
+    assert done is True
+    assert isinstance(citations, list)
     assert uow.committed
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_chat_service_emits_citations_event() -> None:
+    uow = FakeSessionUoW()
+    service = ChatService(
+        hybrid_search=FakeHybridSearch(),
+        reranker=FakeReranker(),
+        llm=FakeLLM(),
+        uow_factory=lambda: uow,
+    )
+    events = [
+        part
+        async for part in service.ask_question(
+            session_id=uuid4(),
+            org_id=uuid4(),
+            user_id=uuid4(),
+            user_query="What is MindVault?",
+        )
+    ]
+    # A terminal citations event must be present so the frontend can render
+    # sources alongside the streamed answer.
+    assert any('"type": "citations"' in e for e in events)
+    saved = uow.messages.last
+    assert saved.role == "assistant"
+    assert saved.token_count is not None and saved.token_count > 0
