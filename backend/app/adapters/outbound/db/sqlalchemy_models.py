@@ -114,7 +114,11 @@ class OrganizationMembershipORM(Base):
         nullable=False,
         index=True,
     )
-    user: Mapped["UserORM"] = relationship("UserORM", lazy="joined")
+    # Disambiguate: this table has two FKs to users.id (user_id and
+    # invited_by_user_id); the member relationship follows user_id.
+    user: Mapped["UserORM"] = relationship(
+        "UserORM", lazy="joined", foreign_keys=[user_id]
+    )
     org: Mapped["OrganizationORM"] = relationship(
         "OrganizationORM", back_populates="members"
     )
