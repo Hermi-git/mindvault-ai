@@ -116,4 +116,4 @@ MindVault AI is designed with standard SaaS security practices in mind:
 
 ## Documentation
 
-- [Architecture](docs/architecture.md)
+- [Architecture](backend/architecture.md)
