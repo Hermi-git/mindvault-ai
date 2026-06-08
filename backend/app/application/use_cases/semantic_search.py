@@ -17,9 +17,11 @@ class SemanticSearchService:
         *,
         hybrid_search: HybridSearchService,
         reranker: Reranker,
+        candidate_pool: int = 20,
     ) -> None:
         self._hybrid_search = hybrid_search
         self._reranker = reranker
+        self._candidate_pool = candidate_pool
 
     async def execute(
         self,
@@ -31,10 +33,13 @@ class SemanticSearchService:
         if not query or not query.strip():
             raise ValueError("query must be a non-empty string")
 
+        # Pull a wider pool than requested so the reranker can reorder before
+        # we trim to the caller's top_k.
+        pool = max(self._candidate_pool, top_k)
         results = await self._hybrid_search.search(
             user_query=query,
             org_id=org_id,
-            top_k=top_k,
+            top_k=pool,
         )
         if not results:
             return {"items": [], "citations": [], "total": 0}
