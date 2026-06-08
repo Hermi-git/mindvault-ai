@@ -36,8 +36,11 @@ from app.infrastructure.di.providers import (
     get_document_repository,
     get_ingest_document_service,
     get_object_storage,
+    get_usage_service,
+    get_vector_store,
 )
 from app.infrastructure.security.auth import get_current_claims
+from app.infrastructure.security.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,15 @@ def _infer_source_type(filename: str | None, content_type: str | None) -> str:
     response_model=DocumentResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload a document for asynchronous chunking",
+    dependencies=[
+        Depends(
+            rate_limit(
+                scope="upload",
+                limit=settings.upload_rate_limit_per_min,
+                window=settings.rate_limit_window_seconds,
+            )
+        )
+    ],
 )
 async def upload_document(
     file: UploadFile = File(..., description="The document file to ingest"),
@@ -171,6 +183,16 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc)
         ) from exc
+
+    try:
+        await get_usage_service().record(
+            org_id=UUID(org_id_str),
+            event_type="upload",
+            document_count=1,
+            user_id=UUID(user_id_str) if user_id_str else None,
+        )
+    except Exception:
+        logger.exception("Failed to record upload usage for org %s", org_id_str)
 
     return _to_response(document)
 
@@ -271,6 +293,14 @@ async def list_document_chunks(
 async def delete_document(
     document_id: UUID, claims: dict = Depends(get_current_claims)
 ):
+    """Delete a document everywhere it lives.
+
+    The chain purges the three stores the document touches so the AI truly
+    forgets it: vectors in Pinecone (so it can no longer surface in answers),
+    the Postgres row (cascading its chunks), and the raw bytes in object
+    storage. Vectors are purged first; external-store failures are logged but
+    do not block removal of the application record.
+    """
     import asyncio
 
     org_id_str = claims.get("org_id")
@@ -278,19 +308,32 @@ async def delete_document(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
         )
+    org_id = UUID(org_id_str)
     repo = get_document_repository()
-    doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
+    doc = await repo.get_by_id(document_id=document_id, org_id=org_id)
     if doc is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
 
-    await repo.delete(document_id=document_id, org_id=UUID(org_id_str))
+    # 1) Purge vectors first so a stale document can never answer a question.
+    try:
+        await get_vector_store().delete_by_document_id(
+            document_id=str(document_id), org_id=str(org_id)
+        )
+    except Exception:
+        logger.exception("Failed to purge vectors for document %s", document_id)
+
+    # 2) Delete the DB row (cascades chunks via FK ondelete=CASCADE).
+    await repo.delete(document_id=document_id, org_id=org_id)
+
+    # 3) Remove the stored bytes (best effort).
     storage = get_object_storage()
     try:
         await asyncio.to_thread(storage.delete_object, key=doc.storage_url)
     except Exception:
         logger.exception("Failed to delete stored bytes for document %s", document_id)
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
