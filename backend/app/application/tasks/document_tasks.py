@@ -18,9 +18,22 @@ def process_document_task(self, *, document_id: str) -> int:
     from app.infrastructure.di.providers import get_process_document_chunks_service
 
     service = get_process_document_chunks_service()
-    logger.info("Worker picked document %s for processing", document_id)
+    task_id = getattr(self.request, "id", None)
+    logger.info(
+        "Worker picked document for processing",
+        extra={"doc_id": document_id, "task_id": task_id},
+    )
     try:
         return service.execute(document_id=UUID(document_id))
-    except Exception:
-        logger.exception("Document %s processing failed", document_id)
+    except Exception as exc:
+        logger.exception(
+            "Document processing failed",
+            extra={
+                "doc_id": document_id,
+                "task_id": task_id,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+                "retries": getattr(self.request, "retries", None),
+            },
+        )
         raise

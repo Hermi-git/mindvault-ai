@@ -20,6 +20,10 @@ async def get_current_claims(
         claims = token_service.decode(credentials.credentials)
         if claims.get("type") != "access":
             raise ValueError("Invalid token type")
+        # A partial "mfa pending" token must NOT grant access to protected
+        # routes — it may only be exchanged at /auth/mfa/verify.
+        if claims.get("mfa") == "pending":
+            raise ValueError("MFA verification required")
         if not claims.get("sub") or not claims.get("org_id"):
             raise ValueError("Token missing required claims")
         if await token_service.is_access_revoked(jti=claims["jti"]):

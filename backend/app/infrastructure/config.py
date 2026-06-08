@@ -73,6 +73,21 @@ class Settings:
 
     cohere_api_key: str = os.getenv("COHERE_API_KEY", "")
 
+    # Maximum number of tokens of retrieved context to send to the LLM. Keeps
+    # prompts under the model context window and bounds cost per question.
+    context_max_tokens: int = int(os.getenv("CONTEXT_MAX_TOKENS", "3000"))
+    # Number of candidates pulled from hybrid search before reranking down to
+    # the final top_k that is actually shown to the model.
+    retrieval_candidate_pool: int = int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "20"))
+
+    # Per-org request rate limits (fixed window) for the most expensive routes.
+    chat_rate_limit_per_min: int = int(os.getenv("CHAT_RATE_LIMIT_PER_MIN", "20"))
+    upload_rate_limit_per_min: int = int(os.getenv("UPLOAD_RATE_LIMIT_PER_MIN", "10"))
+    rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+
+    # Multi-factor authentication (TOTP).
+    mfa_issuer: str = os.getenv("MFA_ISSUER", "MindVault AI")
+
     @property
     def document_allowed_source_types(self) -> set[str]:
         return {

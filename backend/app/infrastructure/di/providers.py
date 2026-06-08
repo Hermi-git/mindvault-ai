@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from redis.asyncio import Redis
@@ -31,6 +32,7 @@ from app.adapters.outbound.vector.pinecone_store import PineconeVectorStore
 from app.application.services.chat_service import ChatService
 from app.application.services.hybrid_search_service import HybridSearchService
 from app.application.services.iam_service import IAMService
+from app.application.services.usage_service import UsageService
 from app.application.use_cases.ingest_document import IngestDocumentService
 from app.application.use_cases.login_user_service import LoginUserService
 from app.application.use_cases.process_document_chunks import (
@@ -53,6 +55,8 @@ from app.infrastructure.security.redis_services import (
     ThrottleService,
     TokenService,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_uow_factory():
@@ -130,6 +134,7 @@ def get_iam_service() -> IAMService:
         access_ttl_seconds=settings.access_token_ttl_seconds,
         refresh_ttl_seconds=settings.refresh_token_ttl_seconds,
         mfa_attempt_ttl_seconds=settings.mfa_attempt_ttl_seconds,
+        mfa_issuer=settings.mfa_issuer,
     )
 
 
@@ -195,6 +200,10 @@ def get_full_text_search() -> FullTextSearch:
     return FTSAdapter(session_factory=SessionFactory)
 
 
+def get_usage_service() -> UsageService:
+    return UsageService(session_factory=SessionFactory)
+
+
 def _enqueue_process_document(*, document_id: str) -> None:
     from app.application.tasks.document_tasks import process_document_task
 
@@ -236,10 +245,24 @@ def get_vector_store() -> PineconeVectorStore:
     )
 
 
+@lru_cache(maxsize=1)
 def get_reranker() -> Reranker:
+    """Pick the best available reranker.
+
+    Cohere when an API key is configured, otherwise a local FlashRank
+    cross-encoder (free, no key). Falls back to a no-op pass-through if
+    FlashRank cannot be loaded so retrieval still works in constrained
+    environments.
+    """
     if settings.cohere_api_key:
         return CohereReranker(api_key=settings.cohere_api_key)
-    return NoOpReranker()
+    try:
+        from app.adapters.outbound.rerank.flashrank_reranker import FlashRankReranker
+
+        return FlashRankReranker()
+    except Exception:  # pragma: no cover - environment without flashrank/model
+        logger.warning("FlashRank unavailable; using no-op reranker")
+        return NoOpReranker()
 
 
 def get_hybrid_search_service() -> HybridSearchService:
@@ -263,6 +286,10 @@ def get_chat_service() -> ChatService:
         reranker=get_reranker(),
         llm=get_llm(),
         uow_factory=get_uow_factory(),
+        candidate_pool=settings.retrieval_candidate_pool,
+        context_max_tokens=settings.context_max_tokens,
+        model=settings.openai_model,
+        usage_service=get_usage_service(),
     )
 
 
@@ -270,4 +297,5 @@ def get_semantic_search_service() -> SemanticSearchService:
     return SemanticSearchService(
         hybrid_search=get_hybrid_search_service(),
         reranker=get_reranker(),
+        candidate_pool=settings.retrieval_candidate_pool,
     )

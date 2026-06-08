@@ -8,6 +8,8 @@ from app.application.dto.requests import (
     AcceptInvitationRequest,
     InviteMemberRequest,
     LoginRequest,
+    MFAEnableRequest,
+    MFAVerifyRequest,
     PatchMemberRequest,
     RefreshTokenRequest,
     RegisterRequest,
@@ -16,6 +18,7 @@ from app.application.dto.requests import (
 )
 from app.application.dto.responses import (
     InviteMemberResponse,
+    MFAEnrollResponse,
     MFAPartialResponse,
     MeResponse,
     MembersListResponse,
@@ -87,6 +90,53 @@ async def login(
             mfa_attempt_token=result["mfa_attempt_token"],
             expires_in_seconds=result["expires_in_seconds"],
         )
+    return TokenPairResponse(
+        access_token=result["access_token"],
+        refresh_token=result["refresh_token"],
+        token_type=result.get("token_type", "bearer"),
+    )
+
+
+@router.post("/mfa/enroll", response_model=MFAEnrollResponse)
+async def mfa_enroll(
+    claims: dict = Depends(get_current_claims),
+    iam_service=Depends(Container.get_iam_service),
+) -> MFAEnrollResponse:
+    result = await iam_service.start_mfa_enrollment(user_id=UUID(str(claims["sub"])))
+    return MFAEnrollResponse(
+        secret=result["secret"], provisioning_uri=result["provisioning_uri"]
+    )
+
+
+@router.post("/mfa/enable", status_code=status.HTTP_204_NO_CONTENT)
+async def mfa_enable(
+    payload: MFAEnableRequest,
+    claims: dict = Depends(get_current_claims),
+    iam_service=Depends(Container.get_iam_service),
+) -> None:
+    try:
+        await iam_service.enable_mfa(
+            user_id=UUID(str(claims["sub"])), code=payload.code
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+
+
+@router.post("/mfa/verify", response_model=TokenPairResponse)
+async def mfa_verify(
+    payload: MFAVerifyRequest,
+    iam_service=Depends(Container.get_iam_service),
+) -> TokenPairResponse:
+    try:
+        result = await iam_service.verify_mfa(
+            mfa_attempt_token=payload.mfa_attempt_token, code=payload.code
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
     return TokenPairResponse(
         access_token=result["access_token"],
         refresh_token=result["refresh_token"],
