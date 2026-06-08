@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
+import pyotp
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
@@ -42,6 +43,7 @@ class IAMService:
         access_ttl_seconds: int,
         refresh_ttl_seconds: int,
         mfa_attempt_ttl_seconds: int,
+        mfa_issuer: str = "MindVault AI",
     ) -> None:
         self._session_factory = session_factory
         self._token_service = token_service
@@ -52,6 +54,7 @@ class IAMService:
         self._access_ttl_seconds = access_ttl_seconds
         self._refresh_ttl_seconds = refresh_ttl_seconds
         self._mfa_attempt_ttl_seconds = mfa_attempt_ttl_seconds
+        self._mfa_issuer = mfa_issuer
 
     async def _audit(
         self,
@@ -209,6 +212,115 @@ class IAMService:
         await self._token_service.revoke_access(
             jti=access_claims["jti"], ttl_seconds=max(1, exp - now)
         )
+
+    async def _issue_token_pair(
+        self, session, *, user_id: UUID, org_id: UUID, role: str
+    ) -> dict:
+        """Issue a full access+refresh pair and persist the refresh token.
+
+        Shared by password login and MFA verification. The caller owns the
+        session/transaction.
+        """
+        claims = {
+            "sub": str(user_id),
+            "org_id": str(org_id),
+            "role": str(role),
+        }
+        access = await self._token_service.issue_access(
+            claims=claims, ttl_seconds=self._access_ttl_seconds
+        )
+        refresh, refresh_jti, family = await self._token_service.issue_refresh(
+            claims=claims, ttl_seconds=self._refresh_ttl_seconds
+        )
+        session.add(
+            RefreshTokenORM(
+                id=uuid4(),
+                user_id=user_id,
+                org_id=org_id,
+                token_family=family,
+                jti=refresh_jti,
+                expires_at=datetime.now(timezone.utc)
+                + timedelta(seconds=self._refresh_ttl_seconds),
+            )
+        )
+        return {
+            "access_token": access,
+            "refresh_token": refresh,
+            "token_type": "bearer",
+        }
+
+    async def start_mfa_enrollment(self, *, user_id: UUID) -> dict[str, str]:
+        """Generate (or rotate) a TOTP secret and return a provisioning URI.
+
+        The secret is stored but MFA is not yet enforced — the user must
+        confirm a code via :meth:`enable_mfa` first.
+        """
+        secret = pyotp.random_base32()
+        async with self._session_factory() as session:
+            user = (
+                await session.execute(select(UserORM).where(UserORM.id == user_id))
+            ).scalar_one_or_none()
+            if not user:
+                raise ValueError("User not found")
+            user.mfa_secret = secret
+            await session.commit()
+            email = user.email
+
+        provisioning_uri = pyotp.TOTP(secret).provisioning_uri(
+            name=email, issuer_name=self._mfa_issuer
+        )
+        return {"secret": secret, "provisioning_uri": provisioning_uri}
+
+    async def enable_mfa(self, *, user_id: UUID, code: str) -> None:
+        """Confirm the first TOTP code and turn MFA enforcement on."""
+        async with self._session_factory() as session:
+            user = (
+                await session.execute(select(UserORM).where(UserORM.id == user_id))
+            ).scalar_one_or_none()
+            if not user or not user.mfa_secret:
+                raise ValueError("MFA enrollment not started")
+            if not pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1):
+                raise ValueError("Invalid MFA code")
+            user.mfa_enabled = True
+            await session.commit()
+
+    async def verify_mfa(self, *, mfa_attempt_token: str, code: str) -> dict:
+        """Exchange a partial 'mfa pending' token + TOTP code for full tokens."""
+        try:
+            claims = self._token_service.decode(mfa_attempt_token)
+        except Exception as exc:
+            raise ValueError("Invalid or expired MFA token") from exc
+        if claims.get("type") != "access" or claims.get("mfa") != "pending":
+            raise ValueError("Invalid MFA token")
+
+        user_id = UUID(str(claims["sub"]))
+        org_id = UUID(str(claims["org_id"]))
+        role = str(claims.get("role", "member"))
+
+        async with self._session_factory() as session:
+            user = (
+                await session.execute(select(UserORM).where(UserORM.id == user_id))
+            ).scalar_one_or_none()
+            if not user or not user.mfa_secret:
+                raise ValueError("MFA is not configured for this user")
+            if not user.is_active:
+                raise ValueError("User account is disabled")
+            if not pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1):
+                raise ValueError("Invalid MFA code")
+
+            tokens = await self._issue_token_pair(
+                session, user_id=user_id, org_id=org_id, role=role
+            )
+            await session.commit()
+
+        await self._audit(
+            event_type="MFA_VERIFIED",
+            actor_id=user_id,
+            org_id=org_id,
+            ip_address=None,
+            user_agent=None,
+        )
+        return tokens
 
     async def create_invitation(
         self,

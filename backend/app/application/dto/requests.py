@@ -60,6 +60,17 @@ class PatchMemberRequest(BaseModel):
     )
 
 
+class MFAEnableRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    code: StrictStr = Field(..., min_length=6, max_length=8)
+
+
+class MFAVerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    mfa_attempt_token: StrictStr
+    code: StrictStr = Field(..., min_length=6, max_length=8)
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     message: StrictStr = Field(..., min_length=1, max_length=10000)

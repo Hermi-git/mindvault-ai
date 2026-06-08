@@ -37,10 +37,25 @@ class MFAPartialResponse(BaseModel):
     expires_in_seconds: int
 
 
+class MFAEnrollResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    secret: str
+    provisioning_uri: str
+
+
 class InviteMemberResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     invitation_token: str
     invite_url: str
+
+
+class UsageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    org_id: str
+    period_start: str
+    total_tokens: int
+    total_documents: int
+    total_events: int
 
 
 class MembersListResponse(BaseModel):
