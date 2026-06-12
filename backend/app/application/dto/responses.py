@@ -49,6 +49,13 @@ class InviteMemberResponse(BaseModel):
     invite_url: str
 
 
+class SessionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    id: str
+    title: str
+    created_at: str | None = None
+
+
 class UsageResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     org_id: str
@@ -93,3 +100,10 @@ class SearchResponse(BaseModel):
     items: list[SearchChunkResponse]
     citations: list[dict]
     total: int
+
+class CreateSessionresponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str
+    title: str | None =  None
+    created_at:str
+    last_message_at:str
