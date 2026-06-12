@@ -1,7 +1,12 @@
 import { useAuthStore, AuthUser } from '@/stores/authStore';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { authService, LoginRequest, RegisterRequest } from '@/services/api';
+import {
+  authService,
+  isMfaRequired,
+  LoginRequest,
+  RegisterRequest,
+} from '@/services/api';
 import { loginSchema } from '@/lib/validation/login-schema';
 import { registerSchema } from '@/lib/validation/register-schema';
 import type { LoginInput } from '@/lib/validation/login-schema';
@@ -95,6 +100,14 @@ export function useLogin() {
       return response.data;
     },
     onSuccess: (data) => {
+      // Backend may demand a second factor before issuing tokens.
+      if (isMfaRequired(data)) {
+        setError(null);
+        const params = new URLSearchParams({ token: data.mfa_attempt_token });
+        router.push(`/login/mfa?${params.toString()}`);
+        return;
+      }
+
       // Store tokens in Zustand (automatically persists to localStorage)
       setTokens(data.access_token, data.refresh_token);
 
@@ -153,6 +166,17 @@ export function useRegister() {
       };
     },
     onSuccess: (data) => {
+      // A freshly-registered account has no MFA enrolled yet, but guard the
+      // union so this stays correct if that ever changes.
+      if (isMfaRequired(data.login)) {
+        setError(null);
+        const params = new URLSearchParams({
+          token: data.login.mfa_attempt_token,
+        });
+        router.push(`/login/mfa?${params.toString()}`);
+        return;
+      }
+
       // Store tokens from login response (this auto-logs in the user)
       // Also store full_name for dashboard display
       setTokens(data.login.access_token, data.login.refresh_token, data.fullName);
