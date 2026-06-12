@@ -2,18 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   FileText,
+  Search,
   MessageSquare,
   Users,
   Settings,
   LogOut,
-  ChevronDown,
 } from 'lucide-react';
 import { useAuth, useLogout } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { OrgSwitcher } from '@/components/shared/OrgSwitcher';
 import {
   Sidebar,
   SidebarContent,
@@ -37,9 +36,15 @@ const SIDEBAR_ITEMS = [
     icon: FileText,
   },
   {
+    label: 'Search',
+    href: '/dashboard/search',
+    icon: Search,
+  },
+  {
     label: 'Chat',
     href: '/dashboard/chat',
     icon: MessageSquare,
+    disabled: true,
   },
   {
     label: 'Team',
@@ -57,7 +62,6 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { mutate: handleLogout, isPending: isLoggingOut } = useLogout();
-  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
 
   return (
     <Sidebar>
@@ -72,32 +76,8 @@ export function DashboardSidebar() {
       </SidebarHeader>
 
       {/* Organization Selector */}
-      <div className="px-4 py-4 border-b border-slate-800">
-        <button
-          onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0">
-              AC
-            </div>
-            <div className="text-left min-w-0">
-              <p className="text-sm font-medium text-white truncate">Acme Corp</p>
-              <p className="text-xs text-slate-400">Business plan</p>
-            </div>
-          </div>
-          <ChevronDown className={cn(
-            'w-4 h-4 text-slate-400 transition-transform shrink-0',
-            orgDropdownOpen && 'rotate-180'
-          )} />
-        </button>
-
-        {/* Organization Dropdown */}
-        {orgDropdownOpen && (
-          <div className="mt-2 rounded-lg bg-slate-800 border border-slate-700 py-2">
-            <p className="text-xs text-slate-400 px-3 py-2">Switch Organization</p>
-          </div>
-        )}
+      <div className="border-b border-slate-800">
+        <OrgSwitcher />
       </div>
 
       <SidebarSeparator />
@@ -108,6 +88,24 @@ export function DashboardSidebar() {
           {SIDEBAR_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+
+            if (item.disabled) {
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    disabled
+                    className="cursor-not-allowed opacity-50"
+                    tooltip="Coming soon"
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                    <span className="ml-auto rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                      Soon
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            }
 
             return (
               <SidebarMenuItem key={item.href}>
