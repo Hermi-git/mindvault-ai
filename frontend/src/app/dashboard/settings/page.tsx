@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings2 } from 'lucide-react';
+import { MfaSettings } from '@/components/features/dashboard/settings/MfaSettings';
 
 export default function SettingsPage() {
   return (
@@ -14,6 +14,9 @@ export default function SettingsPage() {
 
       {/* Settings Cards */}
       <div className="space-y-6 max-w-2xl">
+        {/* Security / MFA */}
+        <MfaSettings />
+
         {/* Organization Settings */}
         <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Organization</h2>
