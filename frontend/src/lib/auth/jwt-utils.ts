@@ -18,6 +18,19 @@ export interface JWTClaims {
  * Decode JWT token without verification (client-side only)
  * Backend already verified signature, we just extract claims
  */
+function base64UrlDecode(segment: string): string {
+  // JWT uses base64url; normalize to base64 and pad before decoding.
+  const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(
+    base64.length + ((4 - (base64.length % 4)) % 4),
+    '='
+  );
+  const binary = atob(padded);
+  // Reconstruct UTF-8 so non-ASCII claims (e.g. names) decode correctly.
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 export function decodeJWT(token: string): JWTClaims | null {
   try {
     const parts = token.split('.');
@@ -25,9 +38,7 @@ export function decodeJWT(token: string): JWTClaims | null {
       return null;
     }
 
-    const decoded = JSON.parse(
-      Buffer.from(parts[1], 'base64').toString('utf-8')
-    );
+    const decoded = JSON.parse(base64UrlDecode(parts[1]));
     return decoded as JWTClaims;
   } catch (error) {
     console.error('Failed to decode JWT:', error);
@@ -60,13 +71,18 @@ export function getTokenExpiry(token: string): number {
 /**
  * Extract user info from access token
  */
-export function extractUserFromToken(token: string) {
+export function extractUserFromToken(token: string): {
+  user_id: string;
+  org_id: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
+  full_name?: string;
+} | null {
   const claims = decodeJWT(token);
   if (!claims) return null;
 
   return {
     user_id: claims.sub,
     org_id: claims.org_id,
-    role: claims.role,
+    role: (claims.role as 'owner' | 'admin' | 'member' | 'viewer') ?? 'member',
   };
 }
