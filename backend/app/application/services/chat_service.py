@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 from uuid import UUID
 
+from app.adapters.outbound.db.repositories.chat_session_repository_implementation import (  # noqa: E501
+    NotFound as SessionNotFound,
+)
 from app.application.services.hybrid_search_service import HybridSearchService
 from app.domain.entities.chat_message import ChatMessage
+from app.domain.entities.chat_session import ChatSession
 from app.domain.ports.outbound.llm_port import LLMPort
 from app.domain.ports.outbound.reranker import Reranker
 from app.domain.services.citation_policy import (
@@ -44,6 +48,35 @@ class ChatService:
         self._model = model
         self._usage_service = usage_service
 
+    async def create_session(
+        self,
+        *,
+        org_id: UUID,
+        user_id: UUID,
+        title: str,
+    ) -> ChatSession:
+        session = ChatSession.create(org_id=org_id, user_id=user_id, title=title)
+        async with self._uow_factory() as uow:
+            await uow.sessions.create_chat_session(session)
+            await uow.commit()
+        return session
+
+    async def _ensure_session(
+        self, uow, *, session_id: UUID, org_id: UUID, user_id: UUID
+    ) -> None:
+        try:
+            await uow.sessions.get_chat_session(session_id)
+        except SessionNotFound:
+            session = ChatSession(
+                id=session_id,
+                org_id=org_id,
+                user_id=user_id,
+                title="New Chat",
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            await uow.sessions.create_chat_session(session)
+
     async def ask_question(
         self,
         *,
@@ -77,6 +110,9 @@ class ChatService:
         citations_as_dicts = [c.__dict__ for c in citations]
 
         async with self._uow_factory() as uow:
+            await self._ensure_session(
+                uow, session_id=session_id, org_id=org_id, user_id=user_id
+            )
             history = await uow.messages.get_recent_by_session(session_id, limit=6)
 
             user_msg = ChatMessage.create_user_message(
@@ -141,6 +177,10 @@ class ChatService:
         token_count: int,
     ) -> None:
         async with self._uow_factory() as uow:
+            await self._ensure_session(
+                uow, session_id=session_id, org_id=org_id, user_id=user_id
+            )
+
             ai_msg = ChatMessage.create_assistant_message(
                 session_id=session_id,
                 org_id=org_id,
