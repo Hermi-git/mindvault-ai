@@ -2,22 +2,19 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.adapters.outbound.db.repositories.chat_message_repository_implementation import (
-    ChatMessageRepositoryImplementation,
+from app.adapters.outbound.db.repositories import (
+    chat_message_repository_implementation,
+    chat_session_repository_implementation,
+    membership_repository_impl,
+    organization_repository_impl,
+    user_repository_impl,
 )
-from app.adapters.outbound.db.repositories.chat_session_repository_implementation import (
-    ChatSessionRepositoryImplementation,
-)
-from app.adapters.outbound.db.repositories.membership_repository_impl import (
-    MembershipRepositoryImpl,
-)
-from app.adapters.outbound.db.repositories.organization_repository_impl import (
-    OrganizationRepositoryImpl,
-)
-from app.adapters.outbound.db.repositories.user_repository_impl import (
-    UserRepositoryImpl,
-)
+from app.domain.ports.outbound.chat_message import ChatMessageRepository
+from app.domain.ports.outbound.chat_session import ChatSessionRepository
+from app.domain.ports.outbound.membership_repository import MembershipRepository
+from app.domain.ports.outbound.organization_repository import OrganizationRepository
 from app.domain.ports.outbound.unit_of_work import UnitOfWork
+from app.domain.ports.outbound.user_repository import UserRepository
 
 
 class SQLAlchemyUnitOfWork(UnitOfWork):
@@ -25,20 +22,32 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self._session_factory = session_factory
         self._session: AsyncSession | None = None
         self._committed = False
-        self.users = None
-        self.organizations = None
-        self.memberships = None
-        self.sessions = None
-        self.messages = None
+        self.users: UserRepository | None = None
+        self.organizations: OrganizationRepository | None = None
+        self.memberships: MembershipRepository | None = None
+        self.sessions: ChatSessionRepository | None = None
+        self.messages: ChatMessageRepository | None = None
 
     async def __aenter__(self) -> "SQLAlchemyUnitOfWork":
         self._session = self._session_factory()
         self._committed = False
-        self.users = UserRepositoryImpl(db=self._session)
-        self.organizations = OrganizationRepositoryImpl(db=self._session)
-        self.memberships = MembershipRepositoryImpl(db=self._session)
-        self.sessions = ChatSessionRepositoryImplementation(db_session=self._session)
-        self.messages = ChatMessageRepositoryImplementation(db_session=self._session)
+        self.users = user_repository_impl.UserRepositoryImpl(db=self._session)
+        self.organizations = organization_repository_impl.OrganizationRepositoryImpl(
+            db=self._session
+        )
+        self.memberships = membership_repository_impl.MembershipRepositoryImpl(
+            db=self._session
+        )
+        self.sessions = (
+            chat_session_repository_implementation.ChatSessionRepositoryImplementation(
+                db_session=self._session
+            )
+        )
+        self.messages = (
+            chat_message_repository_implementation.ChatMessageRepositoryImplementation(
+                db_session=self._session
+            )
+        )
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

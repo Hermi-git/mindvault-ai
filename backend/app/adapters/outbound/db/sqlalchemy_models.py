@@ -5,7 +5,16 @@ from uuid import uuid4
 from typing import Any
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -26,6 +35,7 @@ class UserORM(Base):
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
     is_platform_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
     mfa_enabled: Mapped[bool] = mapped_column(nullable=False, default=False)
+    mfa_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
     metadata_json: Mapped[dict] = mapped_column(
         "metadata", JSONB, default=dict, nullable=False
     )
@@ -56,6 +66,9 @@ class OrganizationORM(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    members: Mapped[list["OrganizationMembershipORM"]] = relationship(
+        "OrganizationMembershipORM", back_populates="org"
     )
 
 
@@ -100,6 +113,14 @@ class OrganizationMembershipORM(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    # Disambiguate: this table has two FKs to users.id (user_id and
+    # invited_by_user_id); the member relationship follows user_id.
+    user: Mapped["UserORM"] = relationship(
+        "UserORM", lazy="joined", foreign_keys=[user_id]
+    )
+    org: Mapped["OrganizationORM"] = relationship(
+        "OrganizationORM", back_populates="members"
     )
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="member")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
@@ -318,3 +339,33 @@ class ChatMessageORM(Base):
     )
 
     session: Mapped[ChatSessionORM] = relationship(back_populates="messages")
+
+
+class UsageLogORM(Base):
+    __tablename__ = "usage_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    document_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    metadata_json: Mapped[dict] = mapped_column(
+        "metadata", JSONB, default=dict, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+    __table_args__ = (Index("ix_usage_logs_org_created", "org_id", "created_at"),)

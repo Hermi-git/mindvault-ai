@@ -1,22 +1,3 @@
-"""Local-disk implementation of :class:`ObjectStorage`.
-
-Stores files under ``base_dir / key`` where ``key`` is a relative path like
-``<org_id>/<document_id>-<filename>``. Suitable for dev, single-host setups,
-or as a fallback before S3/Supabase wiring.
-
-Design notes:
-  * Methods are synchronous (small files, OS-level IO). Async callers wrap
-    with ``asyncio.to_thread``.
-  * ``put_object`` uses *atomic* write (temp file + rename) so partial files
-    are never readable by the worker.
-  * ``key`` is sanitized to prevent path traversal outside ``base_dir``.
-  * File mode is forced to ``FILE_MODE`` (0644) and directory mode to
-    ``DIR_MODE`` (0755) so that an API container running as root can write
-    uploads and a Celery worker running as a non-root user (``appuser``) can
-    still read them. ``tempfile.mkstemp`` defaults to 0600 which silently
-    breaks the cross-process pipeline.
-"""
-
 from __future__ import annotations
 
 import os
@@ -49,19 +30,14 @@ class LocalObjectStorage(ObjectStorage):
     ) -> str:
         target = self._resolve(key)
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Make every directory between base_dir and the file traversable so
-        # other-uid processes (Celery worker) can chdir/open through them.
         for parent in _parents_below(target.parent, self._base_dir):
             _ensure_mode(parent, DIR_MODE)
-        # Atomic write: write to temp in same dir, fsync, then rename.
         fd, tmp_path = tempfile.mkstemp(prefix=".tmp-", dir=str(target.parent))
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)
                 fh.flush()
                 os.fsync(fh.fileno())
-            # mkstemp creates 0600; chmod *before* rename so the visible file
-            # is never momentarily unreadable to the worker.
             os.chmod(tmp_path, FILE_MODE)
             os.replace(tmp_path, target)
         except Exception:
@@ -83,7 +59,7 @@ class LocalObjectStorage(ObjectStorage):
 
 
 def _parents_below(start: Path, base: Path) -> list[Path]:
-    """Return ``[base, ..., start]`` if ``start`` is at/under ``base`` else ``[start]``."""
+    """Return ``[base, ..., start]`` if start is under base else ``[start]``."""
     try:
         rel = start.resolve().relative_to(base)
     except ValueError:

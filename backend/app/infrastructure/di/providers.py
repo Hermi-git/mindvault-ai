@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from redis.asyncio import Redis
 
 from app.adapters.outbound.ai.local_embedder import AsyncLocalBGEAdapter
+from app.adapters.outbound.ai.local_embedder import SyncLocalBGEAdapter
+from app.adapters.outbound.db.fts_adapter import FTSAdapter
 from app.adapters.outbound.db.repositories.document_repository_impl import (
     ChunkRepositoryImpl,
     DocumentRepositoryImpl,
@@ -22,23 +25,29 @@ from app.adapters.outbound.llm.openai_provider import OpenAIAdapter
 from app.adapters.outbound.loaders.docx_loader import DocxDocumentLoader
 from app.adapters.outbound.loaders.pdf_loader import PDFDocumentLoader
 from app.adapters.outbound.loaders.text_loader import TextDocumentLoader
+from app.adapters.outbound.rerank.cohere_reranker import CohereReranker
+from app.adapters.outbound.rerank.reranker import NoOpReranker
 from app.adapters.outbound.storage.local_storage import LocalObjectStorage
 from app.adapters.outbound.vector.pinecone_store import PineconeVectorStore
 from app.application.services.chat_service import ChatService
+from app.application.services.hybrid_search_service import HybridSearchService
 from app.application.services.iam_service import IAMService
-from app.application.services.ingestion_service import IngestionService
+from app.application.services.usage_service import UsageService
 from app.application.use_cases.ingest_document import IngestDocumentService
 from app.application.use_cases.login_user_service import LoginUserService
 from app.application.use_cases.process_document_chunks import (
     ProcessDocumentChunksService,
 )
 from app.application.use_cases.register_user_service import RegisterUserService
+from app.application.use_cases.semantic_search import SemanticSearchService
 from app.application.use_cases.switch_org_service import SwitchOrganizationService
 from app.domain.ports.outbound.chunk_repository import ChunkRepository
 from app.domain.ports.outbound.document_loader import DocumentLoaderRegistry
 from app.domain.ports.outbound.document_repository import DocumentRepository
 from app.domain.ports.outbound.email_sender import EmailSender
+from app.domain.ports.outbound.full_text_search import FullTextSearch
 from app.domain.ports.outbound.object_storage import ObjectStorage
+from app.domain.ports.outbound.reranker import Reranker
 from app.domain.services.chunking_policy import ChunkingConfig
 from app.infrastructure.config import settings
 from app.infrastructure.security.redis_services import (
@@ -46,6 +55,8 @@ from app.infrastructure.security.redis_services import (
     ThrottleService,
     TokenService,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_uow_factory():
@@ -63,6 +74,10 @@ def get_token_provider():
         issuer=settings.jwt_issuer,
         audience=settings.jwt_audience,
     )
+
+
+def get_sync_embedder() -> SyncLocalBGEAdapter:
+    return SyncLocalBGEAdapter(model_name="BAAI/bge-small-en-v1.5")
 
 
 def get_redis_client() -> Redis:
@@ -119,6 +134,7 @@ def get_iam_service() -> IAMService:
         access_ttl_seconds=settings.access_token_ttl_seconds,
         refresh_ttl_seconds=settings.refresh_token_ttl_seconds,
         mfa_attempt_ttl_seconds=settings.mfa_attempt_ttl_seconds,
+        mfa_issuer=settings.mfa_issuer,
     )
 
 
@@ -150,7 +166,6 @@ def get_switch_org_service():
 
 @lru_cache(maxsize=1)
 def get_object_storage() -> ObjectStorage:
-    """Singleton local-disk storage; swap for S3/Supabase here when ready."""
     return LocalObjectStorage(base_dir=settings.document_storage_dir)
 
 
@@ -181,10 +196,18 @@ def get_chunk_repository() -> ChunkRepository:
     return ChunkRepositoryImpl(session_factory=SessionFactory)
 
 
-def _enqueue_process_document(*, document_id: str) -> None:
-    from app.application.tasks.ingestion_tasks import ingest_document_task
+def get_full_text_search() -> FullTextSearch:
+    return FTSAdapter(session_factory=SessionFactory)
 
-    ingest_document_task.delay(document_id=document_id)
+
+def get_usage_service() -> UsageService:
+    return UsageService(session_factory=SessionFactory)
+
+
+def _enqueue_process_document(*, document_id: str) -> None:
+    from app.application.tasks.document_tasks import process_document_task
+
+    process_document_task.delay(document_id=document_id)
 
 
 def get_ingest_document_service() -> IngestDocumentService:
@@ -204,38 +227,53 @@ def get_process_document_chunks_service() -> ProcessDocumentChunksService:
         object_storage=get_object_storage(),
         loader_registry=get_document_loader_registry(),
         chunking_config=get_chunking_config(),
+        embedding_provider=get_sync_embedder(),
+        vector_store=get_vector_store(),
     )
 
 
 @lru_cache(maxsize=1)
 def get_embedder() -> AsyncLocalBGEAdapter:
-    """Singleton embedder for text-to-vector conversion."""
     return AsyncLocalBGEAdapter(model_name="BAAI/bge-small-en-v1.5")
 
 
 @lru_cache(maxsize=1)
 def get_vector_store() -> PineconeVectorStore:
-    """Singleton Pinecone vector store."""
     return PineconeVectorStore(
         api_key=settings.pinecone_api_key,
         index_name=settings.pinecone_index_name,
     )
 
 
-def get_ingestion_service() -> IngestionService:
-    """Get the ingestion service with all dependencies."""
-    return IngestionService(
-        storage=get_object_storage(),
-        repository=get_document_repository(),
-        parser=None,
+@lru_cache(maxsize=1)
+def get_reranker() -> Reranker:
+    """Pick the best available reranker.
+
+    Cohere when an API key is configured, otherwise a local FlashRank
+    cross-encoder (free, no key). Falls back to a no-op pass-through if
+    FlashRank cannot be loaded so retrieval still works in constrained
+    environments.
+    """
+    if settings.cohere_api_key:
+        return CohereReranker(api_key=settings.cohere_api_key)
+    try:
+        from app.adapters.outbound.rerank.flashrank_reranker import FlashRankReranker
+
+        return FlashRankReranker()
+    except Exception:  # pragma: no cover - environment without flashrank/model
+        logger.warning("FlashRank unavailable; using no-op reranker")
+        return NoOpReranker()
+
+
+def get_hybrid_search_service() -> HybridSearchService:
+    return HybridSearchService(
         embedder=get_embedder(),
         vector_store=get_vector_store(),
-        uow_factory=get_uow_factory(),
+        full_text_search=get_full_text_search(),
     )
 
 
 def get_llm() -> OpenAIAdapter:
-    """Get the LLM adapter (OpenAI)."""
     return OpenAIAdapter(
         api_key=settings.openai_api_key,
         model=settings.openai_model,
@@ -244,8 +282,20 @@ def get_llm() -> OpenAIAdapter:
 
 def get_chat_service() -> ChatService:
     return ChatService(
-        embedder=get_embedder(),
-        vector_store=get_vector_store(),
+        hybrid_search=get_hybrid_search_service(),
+        reranker=get_reranker(),
         llm=get_llm(),
         uow_factory=get_uow_factory(),
+        candidate_pool=settings.retrieval_candidate_pool,
+        context_max_tokens=settings.context_max_tokens,
+        model=settings.openai_model,
+        usage_service=get_usage_service(),
+    )
+
+
+def get_semantic_search_service() -> SemanticSearchService:
+    return SemanticSearchService(
+        hybrid_search=get_hybrid_search_service(),
+        reranker=get_reranker(),
+        candidate_pool=settings.retrieval_candidate_pool,
     )

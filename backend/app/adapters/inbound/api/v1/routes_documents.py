@@ -22,7 +22,12 @@ from app.application.dto.document_schemas import (
     DocumentListResponse,
     DocumentResponse,
 )
-from app.domain.entities.document import Document, DocumentStatus
+from app.domain.entities.document import Document
+from app.domain.exceptions import (
+    DocumentEmptyError,
+    DocumentTooLargeError,
+    UnsupportedSourceTypeError,
+)
 from app.domain.ports.inbound.ingestion_use_case import IngestDocumentCommand
 from app.domain.services.chunking_policy import estimate_token_count
 from app.infrastructure.config import settings
@@ -31,8 +36,11 @@ from app.infrastructure.di.providers import (
     get_document_repository,
     get_ingest_document_service,
     get_object_storage,
+    get_usage_service,
+    get_vector_store,
 )
 from app.infrastructure.security.auth import get_current_claims
+from app.infrastructure.security.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -57,39 +65,58 @@ def _to_response(document: Document) -> DocumentResponse:
 
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+_CONTENT_TYPE_MAP = {
+    "application/pdf": "pdf",
+    _DOCX_MIME: "docx",
+    "text/markdown": "markdown",
+    "text/x-markdown": "markdown",
+}
+_EXTENSION_MAP = {
+    ".pdf": "pdf",
+    ".docx": "docx",
+    ".md": "markdown",
+    ".markdown": "markdown",
+    ".txt": "text",
+    ".text": "text",
+    ".log": "text",
+}
+
+
+def _infer_from_content_type(content_type: str | None) -> str | None:
+    if not content_type:
+        return None
+    ct = content_type.lower()
+    mapped = _CONTENT_TYPE_MAP.get(ct)
+    if mapped:
+        return mapped
+    if ct.startswith("text/"):
+        return "text"
+    return None
+
+
+def _infer_from_filename(filename: str | None) -> str | None:
+    if not filename:
+        return None
+    guessed, _ = mimetypes.guess_type(filename)
+    if guessed:
+        mapped = _CONTENT_TYPE_MAP.get(guessed)
+        if mapped:
+            return mapped
+        if guessed.startswith("text/"):
+            return "text"
+    lower = filename.lower()
+    for ext, source in _EXTENSION_MAP.items():
+        if lower.endswith(ext):
+            return source
+    return None
+
 
 def _infer_source_type(filename: str | None, content_type: str | None) -> str:
-    if content_type:
-        ct = content_type.lower()
-        if ct == "application/pdf":
-            return "pdf"
-        if ct == _DOCX_MIME:
-            return "docx"
-        if ct in {"text/markdown", "text/x-markdown"}:
-            return "markdown"
-        if ct.startswith("text/"):
-            return "text"
-    if filename:
-        guessed, _ = mimetypes.guess_type(filename)
-        if guessed:
-            if guessed == "application/pdf":
-                return "pdf"
-            if guessed == _DOCX_MIME:
-                return "docx"
-            if guessed in {"text/markdown", "text/x-markdown"}:
-                return "markdown"
-            if guessed.startswith("text/"):
-                return "text"
-        lower = filename.lower()
-        if lower.endswith(".pdf"):
-            return "pdf"
-        if lower.endswith(".docx"):
-            return "docx"
-        if lower.endswith((".md", ".markdown")):
-            return "markdown"
-        if lower.endswith((".txt", ".text", ".log")):
-            return "text"
-    return "text"
+    return (
+        _infer_from_content_type(content_type)
+        or _infer_from_filename(filename)
+        or "text"
+    )
 
 
 @router.post(
@@ -97,6 +124,15 @@ def _infer_source_type(filename: str | None, content_type: str | None) -> str:
     response_model=DocumentResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload a document for asynchronous chunking",
+    dependencies=[
+        Depends(
+            rate_limit(
+                scope="upload",
+                limit=settings.upload_rate_limit_per_min,
+                window=settings.rate_limit_window_seconds,
+            )
+        )
+    ],
 )
 async def upload_document(
     file: UploadFile = File(..., description="The document file to ingest"),
@@ -117,10 +153,6 @@ async def upload_document(
         )
 
     raw = await file.read()
-    if not raw:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty"
-        )
 
     inferred_type = (
         source_type or _infer_source_type(file.filename, file.content_type)
@@ -139,10 +171,28 @@ async def upload_document(
     service = get_ingest_document_service()
     try:
         document = await service.execute(command)
-    except ValueError as exc:
+    except DocumentEmptyError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
+    except DocumentTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+        ) from exc
+    except UnsupportedSourceTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc)
+        ) from exc
+
+    try:
+        await get_usage_service().record(
+            org_id=UUID(org_id_str),
+            event_type="upload",
+            document_count=1,
+            user_id=UUID(user_id_str) if user_id_str else None,
+        )
+    except Exception:
+        logger.exception("Failed to record upload usage for org %s", org_id_str)
 
     return _to_response(document)
 
@@ -243,6 +293,14 @@ async def list_document_chunks(
 async def delete_document(
     document_id: UUID, claims: dict = Depends(get_current_claims)
 ):
+    """Delete a document everywhere it lives.
+
+    The chain purges the three stores the document touches so the AI truly
+    forgets it: vectors in Pinecone (so it can no longer surface in answers),
+    the Postgres row (cascading its chunks), and the raw bytes in object
+    storage. Vectors are purged first; external-store failures are logged but
+    do not block removal of the application record.
+    """
     import asyncio
 
     org_id_str = claims.get("org_id")
@@ -250,20 +308,32 @@ async def delete_document(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="No active organization"
         )
+    org_id = UUID(org_id_str)
     repo = get_document_repository()
-    doc = await repo.get_by_id(document_id=document_id, org_id=UUID(org_id_str))
+    doc = await repo.get_by_id(document_id=document_id, org_id=org_id)
     if doc is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
 
-    await repo.delete(document_id=document_id, org_id=UUID(org_id_str))
+    # 1) Purge vectors first so a stale document can never answer a question.
+    try:
+        await get_vector_store().delete_by_document_id(
+            document_id=str(document_id), org_id=str(org_id)
+        )
+    except Exception:
+        logger.exception("Failed to purge vectors for document %s", document_id)
+
+    # 2) Delete the DB row (cascades chunks via FK ondelete=CASCADE).
+    await repo.delete(document_id=document_id, org_id=org_id)
+
+    # 3) Remove the stored bytes (best effort).
     storage = get_object_storage()
     try:
         await asyncio.to_thread(storage.delete_object, key=doc.storage_url)
     except Exception:
-        # File missing or transient FS error; we already removed the row.
         logger.exception("Failed to delete stored bytes for document %s", document_id)
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -275,7 +345,10 @@ async def delete_document(
 async def get_document_status(
     document_id: UUID, claims: dict = Depends(get_current_claims)
 ):
-    """Get the current processing status of a document (pending/processing/ready/failed)."""
+    """Get the current processing status of a document.
+
+    Returns pending/processing/ready/failed.
+    """
     org_id_str = claims.get("org_id")
     if not org_id_str:
         raise HTTPException(
@@ -290,6 +363,4 @@ async def get_document_status(
     return _to_response(doc)
 
 
-# Settings reference kept so static analyzers see the import is intentional and
-# the route file participates in any future config-validation hooks.
 _ = settings
