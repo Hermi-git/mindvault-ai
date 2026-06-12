@@ -101,9 +101,10 @@ class SearchResponse(BaseModel):
     citations: list[dict]
     total: int
 
+
 class CreateSessionresponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     session_id: str
-    title: str | None =  None
-    created_at:str
-    last_message_at:str
+    title: str | None = None
+    created_at: str
+    last_message_at: str

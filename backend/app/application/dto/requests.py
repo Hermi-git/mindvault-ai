@@ -89,4 +89,4 @@ class SearchRequest(BaseModel):
 
 class CreateSesssionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    initial_message: StrictStr = Field(..., min_length=1, max_length = 10000)
+    initial_message: StrictStr = Field(..., min_length=1, max_length=10000)
