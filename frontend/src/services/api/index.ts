@@ -1,4 +1,21 @@
 import { apiClient } from './client';
+import type {
+  DocumentChunksResponse,
+  DocumentResponse,
+  DocumentStatus,
+  LoginResult,
+  MeResponse,
+  MFAEnrollResponse,
+  Organization,
+  Paginated,
+  RegisterResponse,
+  SearchResponse,
+  SwitchOrgResponse,
+  TokenPairResponse,
+  UsageResponse,
+} from './types';
+
+export * from './types';
 
 export interface LoginRequest {
   email: string;
@@ -13,126 +30,104 @@ export interface RegisterRequest {
   organization_name: string;
 }
 
-// Register response - doesn't include tokens
-export interface RegisterResponse {
-  user_id: string;
-  default_org_id: string;
-}
-
-// Login response - includes tokens
-export interface TokenPairResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
-// /auth/me response
-export interface MeResponse {
-  user_id: string;
-  org_id: string;
-  role: string;
-}
-
 /**
- * Authentication service methods
- * Handles all auth-related API calls
+ * Authentication service.
+ * Maps 1:1 to backend routes under /auth.
  */
 export const authService = {
-  /**
-   * Register a new user and organization
-   * Returns user_id and org_id (not tokens)
-   * User must login separately
-   */
   register: (data: RegisterRequest) =>
     apiClient.post<RegisterResponse>('/auth/register', data),
 
-  /**
-   * Login user and get tokens
-   * Returns access_token and refresh_token
-   */
   login: (data: LoginRequest) =>
-    apiClient.post<TokenPairResponse>('/auth/login', data),
+    apiClient.post<LoginResult>('/auth/login', data),
 
-  /**
-   * Get current user info from access token
-   * Returns: user_id, org_id, role
-   */
-  getMe: () =>
-    apiClient.get<MeResponse>('/auth/me'),
+  getMe: () => apiClient.get<MeResponse>('/auth/me'),
 
-  /**
-   * Logout user (invalidates refresh token)
-   */
-  logout: () =>
-    apiClient.post('/auth/logout'),
+  logout: () => apiClient.post('/auth/logout'),
 
-  /**
-   * Refresh access token using refresh token
-   */
   refresh: (refreshToken: string) =>
     apiClient.post<TokenPairResponse>('/auth/refresh', {
       refresh_token: refreshToken,
     }),
 
-  /**
-   * Switch active organization
-   */
   switchOrg: (targetOrgId: string) =>
-    apiClient.post<TokenPairResponse & { active_org_id: string }>(
-      '/auth/switch-org',
-      { target_org_id: targetOrgId }
-    ),
+    apiClient.post<SwitchOrgResponse>('/auth/switch-org', {
+      target_org_id: targetOrgId,
+    }),
+
+  // MFA
+  mfaEnroll: () => apiClient.post<MFAEnrollResponse>('/auth/mfa/enroll'),
+
+  mfaEnable: (code: string) =>
+    apiClient.post<void>('/auth/mfa/enable', { code }),
+
+  mfaVerify: (mfaAttemptToken: string, code: string) =>
+    apiClient.post<TokenPairResponse>('/auth/mfa/verify', {
+      mfa_attempt_token: mfaAttemptToken,
+      code,
+    }),
 };
 
 /**
- * Document service methods
+ * Organization service.
+ */
+export const orgService = {
+  listMine: (page = 1, pageSize = 50) =>
+    apiClient.get<Paginated<Organization>>('/auth/me/orgs', {
+      params: { page, page_size: pageSize },
+    }),
+};
+
+/**
+ * Document service.
+ * Upload is multipart -> 202 Accepted; processing happens async in Celery.
  */
 export const documentService = {
-  list: (orgId: string) =>
-    apiClient.get('/documents', { params: { org_id: orgId } }),
+  list: (params?: { page?: number; page_size?: number; status?: DocumentStatus }) =>
+    apiClient.get<Paginated<DocumentResponse>>('/documents', { params }),
 
   get: (docId: string) =>
-    apiClient.get(`/documents/${docId}`),
+    apiClient.get<DocumentResponse>(`/documents/${docId}`),
 
-  create: (title: string, sourceType: string) =>
-    apiClient.post('/documents', { title, source_type: sourceType }),
+  getStatus: (docId: string) =>
+    apiClient.get<DocumentResponse>(`/documents/${docId}/status`),
 
-  delete: (docId: string) =>
-    apiClient.delete(`/documents/${docId}`),
+  listChunks: (docId: string) =>
+    apiClient.get<DocumentChunksResponse>(`/documents/${docId}/chunks`),
 
-  upload: (file: File, docId: string) => {
+  upload: (
+    file: File,
+    opts?: { title?: string; sourceType?: string },
+    onUploadProgress?: (percent: number) => void
+  ) => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post(`/documents/${docId}/upload`, formData, {
+    if (opts?.title) formData.append('title', opts.title);
+    if (opts?.sourceType) formData.append('source_type', opts.sourceType);
+    return apiClient.post<DocumentResponse>('/documents', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onUploadProgress && e.total) {
+          onUploadProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      },
     });
   },
+
+  remove: (docId: string) => apiClient.delete<void>(`/documents/${docId}`),
 };
 
 /**
- * Chat service methods
+ * Semantic search service. Pure vector search, no LLM.
  */
-export const chatService = {
-  createSession: (title: string) =>
-    apiClient.post('/chat/sessions', { title }),
-
-  listSessions: () =>
-    apiClient.get('/chat/sessions'),
-
-  getSession: (sessionId: string) =>
-    apiClient.get(`/chat/sessions/${sessionId}`),
-
-  sendMessage: (sessionId: string, query: string) =>
-    apiClient.post(`/chat/sessions/${sessionId}/messages`, { query }),
+export const searchService = {
+  query: (query: string, topK = 5) =>
+    apiClient.post<SearchResponse>('/search', { query, top_k: topK }),
 };
 
 /**
- * Usage/Analytics service methods
+ * Usage / analytics service.
  */
 export const usageService = {
-  getMetrics: (orgId: string) =>
-    apiClient.get('/usage/metrics', { params: { org_id: orgId } }),
-
-  getDocumentUsage: (docId: string) =>
-    apiClient.get(`/usage/documents/${docId}`),
+  getMonthly: () => apiClient.get<UsageResponse>('/usage'),
 };
