@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { FileText, Trash2, Eye, Loader2 } from 'lucide-react';
+import { FileText, Trash2, Eye, Loader2, ArrowLeft, Info } from 'lucide-react';
 import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
 import { formatDateTime } from '@/lib/utils/helpers';
 import type { DocumentResponse, DocumentStatus } from '@/services/api';
@@ -37,6 +38,9 @@ export function DocumentsManager() {
   const { mutate: removeDocument, isPending: isDeleting } = useDeleteDocument();
 
   const documents = data?.items ?? [];
+  const inFlightCount = documents.filter(
+    (d) => d.status === 'pending' || d.status === 'processing'
+  ).length;
 
   const handleConfirmDelete = () => {
     if (!deleting) return;
@@ -49,6 +53,13 @@ export function DocumentsManager() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
+        <Link
+          href="/dashboard"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-cyan-400"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
         <h1 className="text-3xl font-bold text-white">Documents</h1>
         <p className="mt-2 text-slate-400">
           Upload proprietary docs to your vault. Ingestion runs asynchronously —
@@ -57,9 +68,25 @@ export function DocumentsManager() {
       </div>
 
       {/* Upload */}
-      <div className="mb-8">
+      <div className="mb-6">
         <UploadDropzone />
       </div>
+
+      {/* Async pipeline hint */}
+      {inFlightCount > 0 && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+          <p className="text-sm text-slate-300">
+            {inFlightCount} document{inFlightCount === 1 ? '' : 's'} processing.
+            New uploads start as <span className="font-medium">pending</span>,
+            then a background worker extracts text, splits it into chunks, and
+            generates embeddings — flipping them to{' '}
+            <span className="font-medium text-emerald-400">ready</span>. This
+            list refreshes automatically; viewing chunks unlocks once a document
+            is ready.
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-2">
