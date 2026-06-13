@@ -135,6 +135,26 @@ export interface SearchResponse {
   total: number;
 }
 
+// ---- Chat ----
+export interface ChatSession {
+  id: string;
+  title: string;
+  created_at: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Citation[];
+  streaming?: boolean;
+}
+
+// Server-sent event payloads from POST /chats/{id}/ask
+export type ChatStreamEvent =
+  | { type: 'token'; content: string }
+  | { type: 'citations'; citations: Citation[] };
+
 // ---- Usage ----
 export interface UsageResponse {
   org_id: string;

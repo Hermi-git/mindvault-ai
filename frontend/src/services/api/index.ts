@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type {
+  ChatSession,
   DocumentChunksResponse,
   DocumentResponse,
   DocumentStatus,
@@ -130,4 +131,14 @@ export const searchService = {
  */
 export const usageService = {
   getMonthly: () => apiClient.get<UsageResponse>('/usage'),
+};
+
+/**
+ * Chat service. Session creation is a normal JSON call; the answer stream is
+ * handled separately via fetch (see streamChatAnswer) because it's SSE over a
+ * POST with a bearer token, which axios/EventSource can't do in the browser.
+ */
+export const chatService = {
+  createSession: (title: string) =>
+    apiClient.post<ChatSession>('/chats', { title }),
 };
