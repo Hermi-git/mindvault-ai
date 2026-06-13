@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ShieldCheck, Copy, Check, Loader2 } from 'lucide-react';
 import { useEnrollMfa, useEnableMfa } from '@/hooks/useMfa';
 import { copyToClipboard } from '@/lib/utils/helpers';
@@ -76,31 +77,43 @@ export function MfaSettings() {
       {step === 'confirm' && (
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-sm text-slate-300">
-              1. Add this secret to your authenticator app:
+            <p className="mb-3 text-sm text-slate-300">
+              1. Scan this QR code with your authenticator app (or enter the
+              secret manually):
             </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 break-all rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 font-mono text-sm text-cyan-300">
-                {secret}
-              </code>
-              <button
-                onClick={handleCopy}
-                className="rounded-lg border border-slate-700 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-                title="Copy secret"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-emerald-400" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="w-fit rounded-lg bg-white p-3">
+                {uri && <QRCodeSVG value={uri} size={148} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-xs text-slate-500">Manual entry key</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 font-mono text-sm text-cyan-300">
+                    {secret}
+                  </code>
+                  <button
+                    onClick={handleCopy}
+                    className="shrink-0 rounded-lg border border-slate-700 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                    title="Copy secret"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="mt-2 break-all text-xs text-slate-500">{uri}</p>
           </div>
 
           <div>
             <label className="mb-2 block text-sm text-slate-300">
-              2. Enter the 6-digit code it generates:
+              2. Enter the 6-digit code your app shows{' '}
+              <span className="text-slate-500">
+                (it changes every 30s — don&apos;t type the placeholder)
+              </span>
+              :
             </label>
             <input
               inputMode="numeric"
@@ -108,7 +121,7 @@ export function MfaSettings() {
               onChange={(e) =>
                 setCode(e.target.value.replace(/\D/g, '').slice(0, 8))
               }
-              placeholder="123456"
+              placeholder="000000"
               className="w-40 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-center text-lg tracking-widest text-white placeholder:text-slate-600 focus:border-cyan-400/50 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
             />
           </div>
