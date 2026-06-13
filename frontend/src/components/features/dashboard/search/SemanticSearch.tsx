@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Search, Loader2, FileText, Sparkles } from 'lucide-react';
+import { Search, Loader2, FileText, Sparkles, ArrowLeft } from 'lucide-react';
 import { useSemanticSearch } from '@/hooks/useSearch';
 import type { Citation, SearchChunk } from '@/services/api';
 
@@ -95,6 +96,13 @@ export function SemanticSearch() {
   return (
     <div className="p-8">
       <div className="mb-6">
+        <Link
+          href="/dashboard"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-cyan-400"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
         <h1 className="flex items-center gap-2 text-3xl font-bold text-white">
           Semantic search
           <Sparkles className="h-6 w-6 text-cyan-400" />
