@@ -2,11 +2,21 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Plus, CheckCircle, Clock, Trash2, Loader, Edit2 } from 'lucide-react';
+import {
+  Plus,
+  CheckCircle,
+  Clock,
+  Trash2,
+  Loader,
+  Edit2,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMembers, useInviteMember, useDeleteMember, useEditMember } from '@/hooks/useTeam';
 import { EditMemberModal } from './EditMemberModal';
 import { DeleteMemberConfirm } from './DeleteMemberConfirm';
+import { copyToClipboard } from '@/lib/utils/helpers';
 import type { TeamMember } from '@/services/api/team';
 
 // Role Badge Component
@@ -110,6 +120,11 @@ export default function TeamManagement() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
+  const [inviteResult, setInviteResult] = useState<{
+    email: string;
+    invite_url: string;
+  } | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Edit/Delete Modal State
   const [showEditModal, setShowEditModal] = useState(false);
@@ -128,12 +143,30 @@ export default function TeamManagement() {
   // Handle inviting
   const handleInvite = () => {
     if (!inviteEmail.includes('@')) return;
-    inviteMemberMutate({ email: inviteEmail, role: inviteRole }, {
-      onSuccess: () => {
-        setInviteEmail('');
-        setShowInviteModal(false);
-      },
-    });
+    const email = inviteEmail;
+    inviteMemberMutate(
+      { email, role: inviteRole },
+      {
+        onSuccess: (data) => {
+          setInviteResult({ email, invite_url: data.invite_url });
+          setInviteEmail('');
+        },
+      }
+    );
+  };
+
+  const closeInviteModal = () => {
+    setShowInviteModal(false);
+    setInviteResult(null);
+    setInviteEmail('');
+    setCopiedInvite(false);
+  };
+
+  const handleCopyInvite = async () => {
+    if (inviteResult && (await copyToClipboard(inviteResult.invite_url))) {
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 2000);
+    }
   };
 
   // Handle edit member - opens modal
@@ -299,56 +332,110 @@ export default function TeamManagement() {
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Invite member</h2>
+            {inviteResult ? (
+              /* Success state — surface the invite link (email is sent in the
+                 background by a worker; the link always works as a fallback). */
+              <>
+                <div className="mb-4 flex items-center gap-2">
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
+                  <h2 className="text-2xl font-bold text-white">Invitation created</h2>
+                </div>
+                <p className="text-sm text-slate-300 mb-4">
+                  An email is on its way to{' '}
+                  <span className="font-medium text-white">{inviteResult.email}</span>.
+                  You can also share this link directly:
+                </p>
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={inviteResult.invite_url}
+                    className="flex-1 truncate rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs text-cyan-300"
+                  />
+                  <button
+                    onClick={handleCopyInvite}
+                    className="shrink-0 rounded-lg border border-slate-700 p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                    title="Copy invite link"
+                  >
+                    {copiedInvite ? (
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mb-6">
+                  If no email arrives, confirm the Celery worker is running — the
+                  link above works regardless.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setInviteResult(null)}
+                    className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+                  >
+                    Invite another
+                  </button>
+                  <button
+                    onClick={closeInviteModal}
+                    className="flex-1 px-4 py-2 rounded-lg bg-linear-to-r from-indigo-600 to-cyan-400 text-white font-medium hover:shadow-lg transition-all"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-white mb-4">Invite member</h2>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
-              <input
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-              />
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
+                  <input
+                    type="email"
+                    placeholder="member@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  />
+                </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member')}
-                className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member')}
+                    className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
 
-            {inviteError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                <p className="text-sm text-red-400">{inviteError.message || 'Failed to send invite'}</p>
-              </div>
+                {inviteError && (
+                  <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                    <p className="text-sm text-red-400">{inviteError.message || 'Failed to send invite'}</p>
+                  </div>
+                )}
+
+                <p className="text-sm text-slate-400 mb-6">
+                  An invitation will be sent to this email address. The recipient can accept to join your organization.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={closeInviteModal}
+                    className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleInvite}
+                    disabled={!inviteEmail.includes('@') || isInviting}
+                    className="flex-1 px-4 py-2 rounded-lg bg-linear-to-r from-indigo-600 to-cyan-400 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isInviting ? 'Sending...' : 'Send invite'}
+                  </button>
+                </div>
+              </>
             )}
-
-            <p className="text-sm text-slate-400 mb-6">
-              An invitation will be sent to this email address. The recipient can accept to join your organization.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleInvite}
-                disabled={!inviteEmail.includes('@') || isInviting}
-                className="flex-1 px-4 py-2 rounded-lg bg-linear-to-r from-indigo-600 to-cyan-400 text-white font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isInviting ? 'Sending...' : 'Send invite'}
-              </button>
-            </div>
           </div>
         </div>
       )}
