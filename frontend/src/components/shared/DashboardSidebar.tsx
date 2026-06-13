@@ -44,7 +44,6 @@ const SIDEBAR_ITEMS = [
     label: 'Chat',
     href: '/dashboard/chat',
     icon: MessageSquare,
-    disabled: true,
   },
   {
     label: 'Team',
@@ -88,24 +87,6 @@ export function DashboardSidebar() {
           {SIDEBAR_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
-
-            if (item.disabled) {
-              return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    disabled
-                    className="cursor-not-allowed opacity-50"
-                    tooltip="Coming soon"
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                    <span className="ml-auto rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
-                      Soon
-                    </span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            }
 
             return (
               <SidebarMenuItem key={item.href}>
