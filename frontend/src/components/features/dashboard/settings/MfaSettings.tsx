@@ -76,6 +76,12 @@ export function MfaSettings() {
 
       {step === 'confirm' && (
         <div className="space-y-4">
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-xs text-yellow-200/90">
+            Starting setup generates a <strong>new</strong> secret each time. If
+            you tried before, delete any old &quot;MindVault AI&quot; entries in
+            your authenticator app first — an outdated entry produces codes that
+            will be rejected.
+          </div>
           <div>
             <p className="mb-3 text-sm text-slate-300">
               1. Scan this QR code with your authenticator app (or enter the
