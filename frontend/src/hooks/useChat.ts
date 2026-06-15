@@ -47,8 +47,15 @@ export function useChat() {
         const title = content.slice(0, 60);
         const res = await chatService.createSession(title);
         sessionIdRef.current = res.data.id;
-      } catch {
-        setError('Could not start a conversation. Please try again.');
+      } catch (err) {
+        const detail = (
+          err as { response?: { data?: { detail?: string } } }
+        )?.response?.data?.detail;
+        setError(
+          detail
+            ? `Could not start a conversation: ${detail}`
+            : 'Could not start a conversation. The chat service may be unavailable — please try again or contact support.'
+        );
         return;
       }
     }
